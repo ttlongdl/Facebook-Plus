@@ -23,22 +23,26 @@ static void (*gOriginalSidebarDidMoveToWindow)(
     id, SEL
 ) = NULL;
 
+static void (*gOriginalPlayerViewWillAppear)(
+    id, SEL, BOOL
+) = NULL;
+
+static void (*gOriginalPlayerViewDidDisappear)(
+    id, SEL, BOOL
+) = NULL;
+
 static NSURL *gCurrentDownloadURL = nil;
 static NSString *gCurrentVideoID = nil;
 
 static BOOL gPlayerHookInstalled = NO;
 static BOOL gSidebarHookInstalled = NO;
+static BOOL gLifecycleHooksInstalled = NO;
+
+static __weak id gMediaOwnerPlayerVC = nil;
 
 static const NSInteger kFBPDownloadButtonTag =
     0x46425044;
 
-/*
- * Weak registry.
- *
- * Facebook giữ ownership thật của sidebar.
- * Mình chỉ theo dõi pointer yếu để tránh
- * giữ các Reel/cell cũ sống mãi.
- */
 static NSHashTable<UIView *> *gSidebars = nil;
 
 #pragma mark - Runtime helpers
@@ -112,6 +116,42 @@ static NSURL *FBPURLFromObject(id object) {
 
         return [NSURL
             URLWithString:object];
+    }
+
+    return nil;
+}
+
+static NSURL *FBPPlaybackURLFromItem(id item, NSString **videoIDOut) {
+    if (!item) return nil;
+
+    NSURL *hdURL = FBPURLFromObject(FBPSafeObjectGetter(item, @"HDPlaybackURL"));
+    NSURL *sdURL = FBPURLFromObject(FBPSafeObjectGetter(item, @"SDPlaybackURL"));
+    NSURL *chosen = hdURL ?: sdURL;
+
+    if (videoIDOut) {
+        id rawID = FBPSafeObjectGetter(item, @"videoID");
+        if ([rawID isKindOfClass:[NSString class]]) {
+            *videoIDOut = [(NSString *)rawID copy];
+        } else if (rawID) {
+            *videoIDOut = [[rawID description] copy];
+        } else {
+            *videoIDOut = nil;
+        }
+    }
+
+    return chosen;
+}
+
+static UIViewController *FBPFindControllerOfClass(UIViewController *vc, Class targetClass) {
+    if (!vc || !targetClass) return nil;
+    if ([vc isKindOfClass:targetClass]) return vc;
+
+    UIViewController *found = FBPFindControllerOfClass(vc.presentedViewController, targetClass);
+    if (found) return found;
+
+    for (UIViewController *child in vc.childViewControllers) {
+        found = FBPFindControllerOfClass(child, targetClass);
+        if (found) return found;
     }
 
     return nil;
@@ -857,6 +897,87 @@ static void FBPShowMessage(
 
 @end
 
+
+#pragma mark - Active playback fallback
+
+static id FBPObjectIvar(id object, const char *name) {
+    if (!object || !name) return nil;
+
+    for (Class cls = object_getClass(object);
+         cls;
+         cls = class_getSuperclass(cls)) {
+
+        Ivar ivar = class_getInstanceVariable(cls, name);
+        if (!ivar) continue;
+
+        const char *type = ivar_getTypeEncoding(ivar);
+        if (!type || type[0] != '@') return nil;
+
+        @try {
+            return object_getIvar(object, ivar);
+        } @catch (__unused NSException *e) {
+            return nil;
+        }
+    }
+
+    return nil;
+}
+
+static BOOL FBPCaptureActivePlaybackController(UIButton *sender) {
+    UIWindow *window = sender.window;
+    if (!window) return NO;
+
+    Class playerClass =
+        NSClassFromString(@"FBVideoHomeUnifiedPlayerViewController");
+    if (!playerClass) return NO;
+
+    UIViewController *playerVC =
+        FBPFindControllerOfClass(
+            window.rootViewController,
+            playerClass
+        );
+    if (!playerVC) return NO;
+
+    id feedVC =
+        FBPObjectIvar(playerVC, "_feedViewController");
+
+    id autoAdvance =
+        FBPObjectIvar(feedVC, "_feedAutoAdvanceController");
+
+    id monitor =
+        FBPObjectIvar(autoAdvance, "_currentVideoMonitor");
+
+    id playbackController =
+        FBPSafeObjectGetter(
+            monitor,
+            @"activePlaybackController"
+        );
+    if (!playbackController) return NO;
+
+    id item =
+        FBPSafeObjectGetter(
+            playbackController,
+            @"currentVideoPlaybackItem"
+        );
+    if (!item) return NO;
+
+    NSString *videoID = nil;
+    NSURL *url =
+        FBPPlaybackURLFromItem(
+            item,
+            &videoID
+        );
+    if (!url) return NO;
+
+    @synchronized([NSFileManager class]) {
+        gCurrentDownloadURL = url;
+        gCurrentVideoID = [videoID copy];
+        gMediaOwnerPlayerVC = playerVC;
+    }
+
+    return YES;
+}
+
 #pragma mark - Button handler
 
 @interface FBPReelDownloadHandler :
@@ -911,32 +1032,36 @@ static void FBPShowMessage(
 - (void)downloadButtonPressed:
     (UIButton *)sender {
 
-    sender.alpha =
-        1.0;
+    sender.alpha = 1.0;
 
-    NSURL *url =
-        nil;
-
-    NSString *videoID =
-        nil;
+    NSURL *url = nil;
+    NSString *videoID = nil;
 
     @synchronized([NSFileManager class]) {
-
-        url =
-            gCurrentDownloadURL;
-
-        videoID =
-            [gCurrentVideoID copy];
+        url = gCurrentDownloadURL;
+        videoID = [gCurrentVideoID copy];
     }
 
+    /*
+     * Reels/swipe normally arrive through didStartPlayback.
+     * The first video opened from Home can already be playing before that
+     * callback reaches this controller, so resolve Facebook's active playback
+     * controller on demand when the user actually taps Download.
+     */
+    if (!url &&
+        FBPCaptureActivePlaybackController(sender)) {
+
+        @synchronized([NSFileManager class]) {
+            url = gCurrentDownloadURL;
+            videoID = [gCurrentVideoID copy];
+        }
+    }
 
     if (!url) {
-
         FBPShowMessage(
             @"Facebook Plus",
-            @"Chưa lấy được link của Reel này."
+            @"Chưa lấy được link của video này."
         );
-
         return;
     }
 
@@ -1143,8 +1268,9 @@ FBPGetOrCreateWindowButton(
                 viewWithTag:
                     kFBPDownloadButtonTag];
 
-    if (button)
+    if (button) {
         return button;
+    }
 
     button =
         [UIButton
@@ -1212,7 +1338,6 @@ FBPGetOrCreateWindowButton(
             UIControlEventTouchUpInside];
 
     [window addSubview:button];
-
 
     return button;
 }
@@ -1404,11 +1529,6 @@ static BOOL FBPPlusSettingsIsPresented(UIWindow *window) {
     }
 
     if (!bestSidebar) {
-        /*
-         * Không còn sidebar Reels nào thực sự onscreen => user đã rời Reels
-         * (Home/Feed/Notification/Profile...) hoặc UI đang bị dismiss.
-         * Hide button ngay và reset state. TUYỆT ĐỐI không giữ link UI cũ.
-         */
         UIButton *existingButton =
             (UIButton *)[window viewWithTag:kFBPDownloadButtonTag];
 
@@ -1519,7 +1639,7 @@ FBPSidebarDidMoveToWindow(
     });
 }
 
-#pragma mark - Current Reel
+#pragma mark - Current video
 
 static void
 FBPDidStartPlayback(
@@ -1531,7 +1651,6 @@ FBPDidStartPlayback(
     id playbackController
 ) {
     if (gOriginalDidStartPlayback) {
-
         gOriginalDidStartPlayback(
             self,
             _cmd,
@@ -1547,60 +1666,183 @@ FBPDidStartPlayback(
             playbackController,
             @"currentVideoPlaybackItem"
         );
+    if (!item) return;
 
-    if (!item)
-        return;
-
-    NSURL *hdURL =
-        FBPURLFromObject(
-            FBPSafeObjectGetter(
-                item,
-                @"HDPlaybackURL"
-            )
+    NSString *itemVideoID = nil;
+    NSURL *url =
+        FBPPlaybackURLFromItem(
+            item,
+            &itemVideoID
         );
+    if (!url) return;
 
-    NSURL *sdURL =
-        FBPURLFromObject(
-            FBPSafeObjectGetter(
-                item,
-                @"SDPlaybackURL"
-            )
-        );
-
-    NSURL *chosen =
-        hdURL ?: sdURL;
-
-    if (!chosen)
-        return;
-
-    NSString *newID =
-        nil;
-
-    if ([videoID
-        isKindOfClass:
-            [NSString class]]) {
-
-        newID =
-            [(NSString *)videoID
-                copy];
-
+    NSString *newID = nil;
+    if ([videoID isKindOfClass:[NSString class]]) {
+        newID = [(NSString *)videoID copy];
     } else if (videoID) {
-
-        newID =
-            [[videoID description]
-                copy];
+        newID = [[videoID description] copy];
+    } else {
+        newID = itemVideoID;
     }
-
 
     @synchronized([NSFileManager class]) {
+        gCurrentDownloadURL = url;
+        gCurrentVideoID = [newID copy];
+        gMediaOwnerPlayerVC = self;
+    }
+}
 
-        gCurrentDownloadURL =
-            chosen;
+#pragma mark - Player lifecycle
 
-        gCurrentVideoID =
-            newID;
+static void
+FBPPlayerViewWillAppear(
+    id self,
+    SEL _cmd,
+    BOOL animated
+) {
+    /*
+     * A newly-created fullscreen player must never inherit the previous
+     * viewer's CDN URL.
+     */
+    @synchronized([NSFileManager class]) {
+        if (gMediaOwnerPlayerVC &&
+            gMediaOwnerPlayerVC != self) {
+
+            gCurrentDownloadURL = nil;
+            gCurrentVideoID = nil;
+            gMediaOwnerPlayerVC = nil;
+        }
     }
 
+    if (gOriginalPlayerViewWillAppear) {
+        gOriginalPlayerViewWillAppear(
+            self,
+            _cmd,
+            animated
+        );
+    }
+}
+
+static void
+FBPPlayerViewDidDisappear(
+    id self,
+    SEL _cmd,
+    BOOL animated
+) {
+    if (gOriginalPlayerViewDidDisappear) {
+        gOriginalPlayerViewDidDisappear(
+            self,
+            _cmd,
+            animated
+        );
+    }
+
+    @synchronized([NSFileManager class]) {
+        if (!gMediaOwnerPlayerVC ||
+            gMediaOwnerPlayerVC == self) {
+
+            gCurrentDownloadURL = nil;
+            gCurrentVideoID = nil;
+            gMediaOwnerPlayerVC = nil;
+        }
+    }
+
+    dispatch_async(
+        dispatch_get_main_queue(), ^{
+
+        for (UIScene *scene in
+             [UIApplication sharedApplication].connectedScenes) {
+
+            if (![scene
+                isKindOfClass:[UIWindowScene class]])
+                continue;
+
+            for (UIWindow *window in
+                 ((UIWindowScene *)scene).windows) {
+
+                UIButton *button =
+                    (UIButton *)
+                    [window
+                        viewWithTag:
+                            kFBPDownloadButtonTag];
+
+                if (button) {
+                    button.hidden = YES;
+                    button.alpha = 0.0;
+                }
+            }
+        }
+    });
+}
+
+static BOOL
+FBPInstallOneLifecycleHook(
+    Class cls,
+    SEL sel,
+    IMP replacement,
+    IMP *originalOut
+) {
+    Method method =
+        class_getInstanceMethod(cls, sel);
+
+    if (!method ||
+        method_getNumberOfArguments(method) != 3)
+        return NO;
+
+    char *returnType =
+        method_copyReturnType(method);
+
+    BOOL valid =
+        returnType &&
+        returnType[0] == 'v';
+
+    if (returnType)
+        free(returnType);
+
+    if (!valid)
+        return NO;
+
+    MSHookMessageEx(
+        cls,
+        sel,
+        replacement,
+        originalOut
+    );
+
+    return YES;
+}
+
+static void
+FBPInstallLifecycleHooks(void) {
+    if (gLifecycleHooksInstalled)
+        return;
+
+    Class cls =
+        NSClassFromString(
+            @"FBVideoHomeUnifiedPlayerViewController"
+        );
+    if (!cls)
+        return;
+
+    BOOL willAppearOK =
+        FBPInstallOneLifecycleHook(
+            cls,
+            @selector(viewWillAppear:),
+            (IMP)FBPPlayerViewWillAppear,
+            (IMP *)&gOriginalPlayerViewWillAppear
+        );
+
+    BOOL didDisappearOK =
+        FBPInstallOneLifecycleHook(
+            cls,
+            @selector(viewDidDisappear:),
+            (IMP)FBPPlayerViewDidDisappear,
+            (IMP *)&gOriginalPlayerViewDidDisappear
+        );
+
+    gLifecycleHooksInstalled =
+        willAppearOK &&
+        didDisappearOK;
 }
 
 #pragma mark - Hook installers
@@ -1720,8 +1962,7 @@ FBPInstallSidebarHook(void) {
 }
 
 void FBPInitReelsDownloader(void) {
-
     FBPInstallPlayerHook();
     FBPInstallSidebarHook();
-
+    FBPInstallLifecycleHooks();
 }

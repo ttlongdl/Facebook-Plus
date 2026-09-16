@@ -1,3 +1,11 @@
+## 1.1.1
+
+### Fixed
+- Added download support for videos opened directly from the Facebook Home feed.
+- Fixed stale video URLs causing the previous video to be downloaded after opening another video.
+- Fixed the floating download button remaining visible after dismissing the fullscreen video viewer.
+- Preserved existing Reels download behavior and floating-button swipe lifecycle.
+
 # Changelog
 
 ## 1.1.0
