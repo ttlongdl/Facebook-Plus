@@ -9,8 +9,8 @@
 
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square"></a>
-    <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2015.1%2B-lightgrey.svg?style=flat-square">
-    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.0-success.svg?style=flat-square">
+    <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2017.0%2B-lightgrey.svg?style=flat-square">
+    <img alt="Version" src="https://img.shields.io/badge/Version-1.1.0-success.svg?style=flat-square">
   </p>
 </div>
 
@@ -32,11 +32,11 @@
     </tr>
     <tr>
       <td nowrap>🎬 <b>Reels</b></td>
-      <td><b>Confirm before liking</b></td>
+      <td><b>Confirm before liking</b><br><b>Download Reels</b> directly to Photos</td>
     </tr>
     <tr>
       <td nowrap>📖 <b>Stories</b></td>
-      <td>Watch stories anonymously (Ghost Mode)<br>Disable auto-advance<br>Remove "People you may know"</td>
+      <td>Watch stories anonymously (Ghost Mode)<br>Disable auto-advance<br>Remove "People you may know"<br><b>Download Story photos and videos</b> directly to Photos</td>
     </tr>
     <tr>
       <td nowrap>🎨 <b>Appearance</b></td>
@@ -55,7 +55,15 @@
 
 ## 🚀 Installation
 
-Download the pre-built `.ipa` file from the **[Releases](../../releases)** section and install it on your device using **Feather**, **Ksing**, or any other sideloading tool of your choice.
+### Jailbroken devices
+
+Download the rootless `.deb` from this repository's Releases page and install it with your preferred package manager.
+
+The current rootless build targets iOS 17.0 and later.
+
+### Sideloaded devices
+
+This repository does not distribute Facebook IPA files. To create a sideloadable build, provide your own decrypted Facebook IPA and use the automated injection pipeline described below.
 
 ## 🛠️ Building from Source & Automated Injection
 
@@ -63,7 +71,7 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
 
 1. **Clone the repository** (including submodules):
    ```bash
-   git clone --recursive https://github.com/SHAJON-404/Facebook-Plus.git
+   git clone --recursive https://github.com/ttlongdl/Facebook-Plus.git
    cd Facebook-Plus
    ```
 
@@ -123,6 +131,7 @@ This generates `compile_commands.json`. Re-run this after adding new source file
 │   │   ├── AppChrome   # UI settings gesture (TabBar & Settings Button)
 │   │   ├── AppIcons    # Custom app-icon picker logic
 │   │   ├── Diagnostics # Diagnostics and logging controllers
+│   │   ├── Downloads   # Reels and Stories downloaders
 │   │   ├── FacebookPlus# Subscription unlock previews
 │   │   ├── Feed        # Feed-related hooks (ads, suggestions, Reels)
 │   │   ├── Language    # UI language override hooks
@@ -143,13 +152,19 @@ This generates `compile_commands.json`. Re-run this after adding new source file
 
 ## 📝 To-Do
 
-- [ ] Add Download Stories and Reels feature
+- [x] Add Download Stories and Reels feature
 
 ## 📜 Provenance & Credits
 
-- **Idea & Inspiration:** The core concept of this tweak was inspired by the closed-source Facebook tweak **[Glow](https://github.com/dayanch96/Glow)**. This project is a clean reimplementation based on its behavioral analysis.
-- **Compatibility Layer:** The sideloading compatibility layer (`src/PluginsInject/`) is copied and derived directly from **[zxPluginsInject](https://github.com/asdfzxcvbn/zxPluginsInject)**.
-- **Symbol Rebinding:** Uses **[fishhook](https://github.com/facebook/fishhook)** for dynamic symbol rebinding.
+- **Upstream:** This repository is a community fork of **Facebook Plus by SHAJON-404**. Original project: https://github.com/SHAJON-404/Facebook-Plus
+
+- **Fork additions:** Reels downloading, Story photo/video downloading, download toggles, Vietnamese localization, and related UI compatibility improvements.
+
+- **Idea & Inspiration:** The core concept of this tweak was inspired by the closed-source Facebook tweak **Glow**. Reference: https://github.com/dayanch96/Glow
+
+- **Compatibility Layer:** The sideloading compatibility layer (`src/PluginsInject/`) is copied and derived directly from **zxPluginsInject**: https://github.com/asdfzxcvbn/zxPluginsInject
+
+- **Symbol Rebinding:** Uses **fishhook** for dynamic symbol rebinding: https://github.com/facebook/fishhook
 
 ## ⚖️ License
 

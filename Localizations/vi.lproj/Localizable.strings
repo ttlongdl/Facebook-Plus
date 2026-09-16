@@ -1,0 +1,76 @@
+/* Facebook Plus — Vietnamese */
+
+"settings.subtitle" = "Tùy chọn Facebook Plus";
+
+"row.metaplus.title" = "Bật Facebook Plus";
+"row.metaplus.desc" = "Xem trước mọi tính năng trả phí mà không cần đăng ký.";
+
+"row.noads.title" = "Xóa quảng cáo";
+
+"row.norecs.title" = "Xóa nội dung đề xuất";
+"row.norecs.desc" = "Ẩn các bài viết được thuật toán đề xuất.";
+
+"row.nopymk.title" = "Ẩn Những người bạn có thể biết";
+
+"row.noreels.title" = "Ẩn mục Reels";
+
+"row.nothreads.title" = "Ẩn quảng bá Threads";
+"row.nothreads.desc" = "Ẩn thẻ “khám phá Threads mới”.";
+
+"row.nogroups.title" = "Ẩn đề xuất nhóm";
+"row.nogroups.desc" = "Ẩn các mục đề xuất nhóm bạn có thể muốn tham gia.";
+
+"row.feedlike.title" = "Xác nhận thích bài viết";
+"row.feedlike.desc" = "Hỏi xác nhận trước khi gửi lượt thích.";
+
+
+"row.downloadreels.title" = "Tải Reels";
+"row.downloadreels.desc" = "Hiện nút tải xuống khi xem Reels.";
+"row.downloadstories.title" = "Tải Story";
+"row.downloadstories.desc" = "Hiện nút tải xuống khi xem Story.";
+
+"row.reelslike.title" = "Xác nhận thích Reels";
+
+"row.anonstories.title" = "Xem Story ẩn danh";
+"row.anonstories.desc" = "Xem Story mà không gửi trạng thái đã xem.";
+
+"row.noautonext.title" = "Tắt tự động chuyển Story";
+
+"row.nostorypymk.title" = "Ẩn đề xuất trong Story";
+"row.nostorypymk.desc" = "Ẩn “Những người bạn có thể biết” khỏi khay Story.";
+
+"row.oled.title" = "Chế độ tối OLED";
+"row.oled.desc" = "Chuyển toàn bộ ứng dụng sang nền đen tuyệt đối.";
+
+"row.appicon.title" = "Biểu tượng ứng dụng";
+"row.appicon.desc" = "Chọn một biểu tượng ứng dụng khác.";
+
+"row.autoclear.title" = "Xóa bộ nhớ đệm khi khởi động";
+
+"row.clearcache.title" = "Xóa bộ nhớ đệm ngay";
+
+"row.diagnostics.title" = "Chẩn đoán";
+"row.diagnostics.desc" = "Xem những tính năng đang hoạt động.";
+
+"row.welcome.title" = "Hiện màn hình chào mừng";
+
+"row.reset.title" = "Đặt lại tất cả cài đặt";
+
+"row.language.title" = "Ngôn ngữ";
+
+"footer.by" = "Facebook Plus · bởi ";
+
+"reset.title" = "Đặt lại tất cả cài đặt";
+"reset.message" = "Mọi tùy chọn sẽ trở về mặc định. Thao tác này không thể hoàn tác.";
+"reset.confirm" = "Đặt lại";
+
+"toast.settingsReset" = "Đã đặt lại cài đặt";
+"toast.cacheCleared" = "Đã xóa bộ nhớ đệm";
+
+"appicon.default" = "Mặc định";
+"appicon.applied" = "Đã áp dụng biểu tượng %@";
+"appicon.error.unsupported" = "Ứng dụng này không cho phép thay đổi biểu tượng.";
+"appicon.error.failed" = "Không thể thay đổi biểu tượng.";
+
+"common.cancel" = "Hủy";
+"common.ok" = "OK";

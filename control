@@ -1,9 +1,9 @@
 Package: com.shajon.fbplus
 Name: Facebook Plus
-Version: 1.0.0
+Version: 1.1.0
 Architecture: iphoneos-arm64
-Description: Browse stories privately, confirm before liking, and quieten the feed.
-Maintainer: S. SHAJON
+Description: Privacy and enhancement tweak for Facebook with Reels and Stories downloading, feed controls, Ghost Mode, and customization.
+Maintainer: ttlongdl
 Author: S. SHAJON
 Section: Tweaks
 Depends: mobilesubstrate (>= 0.9.5000)
