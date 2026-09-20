@@ -62,19 +62,64 @@
     );
   }
 
+  function diagnosticSnapshot() {
+    const alIOS = fbURLFromMeta('meta[property="al:ios:url"]', "content");
+    const appArg = appArgumentURL();
+    const marker = markerURL();
+    const fallback = genericFallback();
+    const destination = alIOS || appArg || fallback;
+    const source = alIOS ? "al:ios:url" : appArg ? "app-argument" : "fallback";
+    return {
+      page: window.location.href,
+      alIOS: alIOS || "(none)",
+      appArg: appArg || "(none)",
+      marker: marker || "(none)",
+      fallback,
+      source,
+      destination
+    };
+  }
+
+  function showDiagnostic(info) {
+    const message = [
+      "Open in Facebook — DEBUG",
+      "",
+      `SOURCE: ${info.source}`,
+      "",
+      `PAGE:\n${info.page}`,
+      "",
+      `al:ios:url:\n${info.alIOS}`,
+      "",
+      `app-argument:\n${info.appArg}`,
+      "",
+      `marker:\n${info.marker}`,
+      "",
+      `FINAL:\n${info.destination}`,
+      "",
+      "OK = open FINAL in Facebook",
+      "Cancel = stay in Safari so you can screenshot/copy this dialog"
+    ].join("\n");
+    return window.confirm(message);
+  }
+
   function openInApp() {
-    const destination = nativeDestination();
-    if (!destination) return false;
+    const info = diagnosticSnapshot();
+    if (!info.destination) return false;
 
     const now = Date.now();
     const previous = Number(sessionStorage.getItem(attemptKey()) || 0);
-    if (now - previous < 5000) return true; // already tried very recently
+    if (now - previous < 5000) return true;
 
     try {
       sessionStorage.setItem(attemptKey(), String(now));
     } catch {}
 
-    window.location.replace(destination);
+    if (!showDiagnostic(info)) {
+      try { sessionStorage.removeItem(attemptKey()); } catch {}
+      return true;
+    }
+
+    window.location.replace(info.destination);
     return true;
   }
 
