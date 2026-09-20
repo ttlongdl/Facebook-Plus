@@ -1,0 +1,52 @@
+name: Build OpenInFacebook Safari Extension
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-appex:
+    name: Build arm64 .appex
+    runs-on: macos-latest
+    env:
+      THEOS: ${{ github.workspace }}/theos
+      EXT_DIR: OpenInFacebookSafariExtension/src
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Theos dependencies
+        run: brew install ldid xz
+
+      - name: Set up Theos
+        run: git clone --quiet --recursive https://github.com/theos/theos.git "$THEOS"
+
+      - name: Build OpenInFacebookSafariExtension
+        run: |
+          set -euxo pipefail
+          make -C "$EXT_DIR" clean || true
+          rm -rf "$EXT_DIR/.theos"
+          make -C "$EXT_DIR" FINALPACKAGE=1
+
+      - name: Verify and package .appex
+        run: |
+          set -euxo pipefail
+          APPEX="$(find "$EXT_DIR/.theos/obj" -maxdepth 1 -type d -name 'OpenInFacebookSafariExtension.appex' -print -quit)"
+          test -n "$APPEX"
+          test -f "$APPEX/Info.plist"
+          test -f "$APPEX/OpenInFacebookSafariExtension"
+          file "$APPEX/OpenInFacebookSafariExtension"
+          plutil -p "$APPEX/Info.plist"
+          mkdir -p artifacts
+          ditto -c -k --keepParent "$APPEX" artifacts/OpenInFacebookSafariExtension.appex.zip
+          shasum -a 256 artifacts/OpenInFacebookSafariExtension.appex.zip | tee artifacts/SHA256.txt
+
+      - name: Upload .appex artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenInFacebookSafariExtension-appex
+          path: |
+            artifacts/OpenInFacebookSafariExtension.appex.zip
+            artifacts/SHA256.txt
+          if-no-files-found: error
+          retention-days: 30
