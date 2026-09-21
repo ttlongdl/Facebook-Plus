@@ -5,6 +5,8 @@
 #import <substrate.h>
 
 static BOOL (*FBPBridgeOriginalOpenURL)(id, SEL, UIApplication *, NSURL *, NSDictionary *);
+static BOOL gFBPDeepLinkBridgeInstalled = NO;
+static NSInteger gFBPDeepLinkBridgeAttempts = 0;
 
 static NSURL *FBPBridgeTargetURL(NSURL *incomingURL) {
     if (![incomingURL isKindOfClass:NSURL.class]) return nil;
@@ -70,17 +72,35 @@ static BOOL FBPBridgeOpenURL(id self, SEL _cmd, UIApplication *application, NSUR
 }
 
 static void FBPInstallDeepLinkBridge(void) {
+    if (gFBPDeepLinkBridgeInstalled) return;
+
     Class delegateClass = objc_getClass("FBBaseAppDelegate");
-    if (!delegateClass) return;
-
     SEL selector = NSSelectorFromString(@"application:openURL:options:");
-    Method method = class_getInstanceMethod(delegateClass, selector);
-    if (!method) return;
+    Method method = delegateClass ? class_getInstanceMethod(delegateClass, selector) : NULL;
 
-    MSHookMessageEx(delegateClass, selector, (IMP)FBPBridgeOpenURL, (IMP *)&FBPBridgeOriginalOpenURL);
+    if (delegateClass && method) {
+        MSHookMessageEx(delegateClass, selector, (IMP)FBPBridgeOpenURL, (IMP *)&FBPBridgeOriginalOpenURL);
+        gFBPDeepLinkBridgeInstalled = YES;
+        return;
+    }
+
+    // FacebookPlus may be injected before FBBaseAppDelegate is registered.
+    // Retry on the main queue instead of permanently missing the hook because
+    // constructor timing happened to be earlier on a particular launch/build.
+    if (gFBPDeepLinkBridgeAttempts >= 40) return;
+    gFBPDeepLinkBridgeAttempts += 1;
+
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)),
+        dispatch_get_main_queue(), ^{
+            FBPInstallDeepLinkBridge();
+        }
+    );
 }
 
 __attribute__((constructor))
 static void FBPDeepLinkBridgeEntry(void) {
-    FBPInstallDeepLinkBridge();
+    dispatch_async(dispatch_get_main_queue(), ^{
+        FBPInstallDeepLinkBridge();
+    });
 }
