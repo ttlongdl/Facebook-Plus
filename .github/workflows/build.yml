@@ -59,6 +59,12 @@ jobs:
           test -n "$DYLIB"
           mkdir -p artifacts
           cp "$DYLIB" artifacts/FacebookPlus.dylib
+
+          BUNDLE="$(find resources/.theos -type d -name 'FacebookPlus.bundle' ! -path '*.dSYM/*' -print -quit)"
+          test -n "$BUNDLE"
+          ditto "$BUNDLE" artifacts/FacebookPlus.bundle
+          test -f artifacts/FacebookPlus.bundle/Info.plist
+
           FILE_INFO="$(file artifacts/FacebookPlus.dylib)"
           echo "$FILE_INFO"
           echo "$FILE_INFO" | grep -q 'Mach-O.*dynamically linked shared library'
@@ -75,6 +81,7 @@ jobs:
           path: |
             packages/Facebook-Plus-v*.deb
             artifacts/FacebookPlus.dylib
+            artifacts/FacebookPlus.bundle
             artifacts/SHA256.txt
           if-no-files-found: error
           retention-days: 30
