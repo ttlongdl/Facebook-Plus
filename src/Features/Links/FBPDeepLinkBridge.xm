@@ -29,6 +29,21 @@ static NSURL *FBPBridgeTargetURL(NSURL *incomingURL) {
     NSURL *targetURL = [NSURL URLWithString:targetString];
     NSString *targetScheme = targetURL.scheme.lowercaseString ?: @"";
     if (![targetScheme isEqualToString:@"http"] && ![targetScheme isEqualToString:@"https"]) return nil;
+
+    // Canonicalize Facebook's mobile/web host variants before invoking its
+    // Universal Link handler. Preserve path/query/fragment so reels, posts,
+    // story.php, permalink.php, groups, watch/share URLs, etc. keep identity.
+    NSURLComponents *targetComponents = [NSURLComponents componentsWithURL:targetURL resolvingAgainstBaseURL:NO];
+    NSString *targetHost = targetComponents.host.lowercaseString ?: @"";
+    BOOL facebookHost = [targetHost isEqualToString:@"facebook.com"] ||
+        [targetHost hasSuffix:@".facebook.com"];
+    if (facebookHost) {
+        targetComponents.scheme = @"https";
+        targetComponents.host = @"www.facebook.com";
+        NSURL *canonicalURL = targetComponents.URL;
+        if (canonicalURL) targetURL = canonicalURL;
+    }
+
     return targetURL;
 }
 
