@@ -55,11 +55,17 @@ jobs:
       - name: Collect raw FacebookPlus dylib
         run: |
           set -euxo pipefail
-          DYLIB="$(find .theos/obj -type f -name 'FacebookPlus.dylib' -print -quit)"
+          DYLIB="$(find .theos/obj -type f -name 'FacebookPlus.dylib' ! -path '*.dSYM/*' -print -quit)"
           test -n "$DYLIB"
           mkdir -p artifacts
           cp "$DYLIB" artifacts/FacebookPlus.dylib
-          file artifacts/FacebookPlus.dylib
+          FILE_INFO="$(file artifacts/FacebookPlus.dylib)"
+          echo "$FILE_INFO"
+          echo "$FILE_INFO" | grep -q 'Mach-O.*dynamically linked shared library'
+          if echo "$FILE_INFO" | grep -q 'dSYM companion'; then
+            echo "error: selected dSYM DWARF companion instead of injectable dylib" >&2
+            exit 1
+          fi
           shasum -a 256 artifacts/FacebookPlus.dylib | tee artifacts/SHA256.txt
 
       - name: Upload built packages
