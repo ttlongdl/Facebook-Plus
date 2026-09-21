@@ -60,7 +60,7 @@ jobs:
           mkdir -p artifacts
           cp "$DYLIB" artifacts/FacebookPlus.dylib
 
-          BUNDLE="$(find resources/.theos -type d -name 'FacebookPlus.bundle' ! -path '*.dSYM/*' -print -quit)"
+          BUNDLE="$(find .theos/_ -type d -name 'FacebookPlus.bundle' -print -quit)"
           test -n "$BUNDLE"
           ditto "$BUNDLE" artifacts/FacebookPlus.bundle
           test -f artifacts/FacebookPlus.bundle/Info.plist
