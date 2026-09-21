@@ -1,11 +1,12 @@
 // "Open in Facebook" — content script.
 //
-// Sends the original Facebook HTTPS URL through Facebook's already-registered
-// fb:// scheme. FacebookPlus intercepts the private fbbridge route and feeds the
-// HTTPS URL into Facebook's own Universal Link handler.
+// Preserve the original Facebook HTTP(S) destination and pass it through
+// Facebook's already-registered fb:// scheme. FacebookPlus intercepts the
+// private fbbridge route and hands the normalized HTTPS URL to Facebook's own
+// Universal Link handler.
 //
-// Using the existing fb:// registration means TrollFools injection needs only
-// FacebookPlus.dylib; no CFBundleURLTypes edit is required.
+// Handles desktop/mobile Facebook hosts (www, m, mbasic, mobile, touch, web,
+// lm redirector) plus the Facebook short-link domains covered by manifest.json.
 
 (() => {
   "use strict";
@@ -22,15 +23,50 @@
     }
   }
 
-  function originalFacebookURL() {
-    const marked = markerURL();
-    if (marked) {
-      try {
-        const parsed = new URL(marked);
-        if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
-      } catch {}
+  function unwrapFacebookRedirect(raw) {
+    try {
+      const url = new URL(raw);
+      const host = url.hostname.toLowerCase();
+      if (host === "l.facebook.com" || host === "lm.facebook.com") {
+        const nested = url.searchParams.get("u");
+        if (nested) {
+          const decoded = new URL(nested);
+          if (decoded.protocol === "http:" || decoded.protocol === "https:") return decoded.href;
+        }
+      }
+    } catch {}
+    return raw;
+  }
+
+  function normalizeFacebookURL(raw) {
+    raw = unwrapFacebookRedirect(raw);
+    try {
+      const url = new URL(raw);
+      if (url.protocol !== "http:" && url.protocol !== "https:") return raw;
+
+      const host = url.hostname.toLowerCase();
+      const facebookHost =
+        host === "facebook.com" ||
+        host.endsWith(".facebook.com");
+
+      if (facebookHost) {
+        // Feed Facebook's Universal Link handler a canonical HTTPS web URL.
+        // This keeps path/query intact (reel, posts, story.php, permalink.php,
+        // groups, watch, share links, profile URLs, etc.) while removing the
+        // mobile/mbasic host variants that can otherwise fall back to web.
+        url.protocol = "https:";
+        url.hostname = "www.facebook.com";
+        return url.href;
+      }
+
+      return url.href;
+    } catch {
+      return raw;
     }
-    return window.location.href;
+  }
+
+  function originalFacebookURL() {
+    return normalizeFacebookURL(markerURL() || window.location.href);
   }
 
   function openInApp() {
@@ -43,8 +79,9 @@
       sessionStorage.setItem(attemptKey(), String(now));
     } catch {}
 
-    const bridgeURL = `fb://fbbridge/open?url=${encodeURIComponent(target)}`;
-    window.location.replace(bridgeURL);
+    window.location.replace(
+      `fb://fbbridge/open?url=${encodeURIComponent(target)}`
+    );
   }
 
   openInApp();
