@@ -52,10 +52,23 @@ jobs:
         run: ./build.sh
 
 
+      - name: Collect raw FacebookPlus dylib
+        run: |
+          set -euxo pipefail
+          DYLIB="$(find .theos/obj -type f -name 'FacebookPlus.dylib' -print -quit)"
+          test -n "$DYLIB"
+          mkdir -p artifacts
+          cp "$DYLIB" artifacts/FacebookPlus.dylib
+          file artifacts/FacebookPlus.dylib
+          shasum -a 256 artifacts/FacebookPlus.dylib | tee artifacts/SHA256.txt
+
       - name: Upload built packages
         uses: actions/upload-artifact@v4
         with:
           name: Facebook-Plus
-          path: packages/Facebook-Plus-v*.deb
+          path: |
+            packages/Facebook-Plus-v*.deb
+            artifacts/FacebookPlus.dylib
+            artifacts/SHA256.txt
           if-no-files-found: error
           retention-days: 30
