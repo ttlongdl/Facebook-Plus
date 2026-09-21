@@ -32,10 +32,47 @@ static NSString *const kBundleName = @"FacebookPlus.bundle";
         }
 
         if (!bundle) {
-            // Embedded-in-IPA layout: the bundle sits next to the executable.
-            NSString *embedded = [NSBundle.mainBundle.bundlePath
-                stringByAppendingPathComponent:kBundleName];
-            bundle = [NSBundle bundleWithPath:embedded];
+            // Sideload / TrollFools layouts are not consistent about where an
+            // injected resource bundle is copied. Probe the common locations
+            // inside the host app first.
+            NSString *appPath = NSBundle.mainBundle.bundlePath;
+            NSArray<NSString *> *embeddedCandidates = @[
+                [appPath stringByAppendingPathComponent:kBundleName],
+                [[appPath stringByAppendingPathComponent:@"Frameworks"]
+                    stringByAppendingPathComponent:kBundleName],
+                [[appPath stringByAppendingPathComponent:@"PlugIns"]
+                    stringByAppendingPathComponent:kBundleName],
+            ];
+
+            for (NSString *path in embeddedCandidates) {
+                if ([NSFileManager.defaultManager fileExistsAtPath:path]) {
+                    bundle = [NSBundle bundleWithPath:path];
+                    if (bundle) break;
+                }
+            }
+        }
+
+        if (!bundle) {
+            // Last resort for injectors that place the bundle in another
+            // subdirectory of Facebook.app. Keep the search bounded to the app
+            // bundle and stop at the first exact FacebookPlus.bundle match.
+            NSDirectoryEnumerator<NSString *> *enumerator =
+                [NSFileManager.defaultManager enumeratorAtPath:NSBundle.mainBundle.bundlePath];
+            NSString *relativePath = nil;
+            while ((relativePath = [enumerator nextObject])) {
+                if (![relativePath.lastPathComponent isEqualToString:kBundleName])
+                    continue;
+
+                NSString *path = [NSBundle.mainBundle.bundlePath
+                    stringByAppendingPathComponent:relativePath];
+                BOOL isDirectory = NO;
+                if ([NSFileManager.defaultManager fileExistsAtPath:path
+                                                        isDirectory:&isDirectory] &&
+                    isDirectory) {
+                    bundle = [NSBundle bundleWithPath:path];
+                    if (bundle) break;
+                }
+            }
         }
 
         if (!bundle) {
