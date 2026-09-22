@@ -7,6 +7,7 @@
 static BOOL (*FBPBridgeOriginalOpenURL)(id, SEL, UIApplication *, NSURL *, NSDictionary *);
 static BOOL gFBPDeepLinkBridgeInstalled = NO;
 static NSInteger gFBPDeepLinkBridgeAttempts = 0;
+static NSString * const FBPExternalDeepLinkNotification = @"FBPExternalDeepLinkDidOpenNotification";
 
 static NSURL *FBPBridgeTargetURL(NSURL *incomingURL) {
     if (![incomingURL isKindOfClass:NSURL.class]) return nil;
@@ -57,6 +58,14 @@ static BOOL FBPBridgeOpenURL(id self, SEL _cmd, UIApplication *application, NSUR
 
     SEL universalLinkSelector = NSSelectorFromString(@"application:continueUserActivity:restorationHandler:");
     if (![self respondsToSelector:universalLinkSelector]) return NO;
+
+    // Signal only that an external navigation is beginning. FBAudioFix does
+    // not parse/guess the URL type; it waits to see whether Facebook actually
+    // requests a Playback audio session while resolving this destination.
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:FBPExternalDeepLinkNotification
+                      object:nil
+                    userInfo:@{@"url": targetURL.absoluteString ?: @""}];
 
     NSUserActivity *activity = [[NSUserActivity alloc] initWithActivityType:NSUserActivityTypeBrowsingWeb];
     activity.webpageURL = targetURL;
