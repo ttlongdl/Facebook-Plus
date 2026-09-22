@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p release-assets/build release-assets/injection
           gh run download 35689915558 --repo "$GITHUB_REPOSITORY" -n Facebook-Plus -D release-assets/build
-          gh run download 35689915558 --repo "$GITHUB_REPOSITORY" -n FacebookPlus-1.0.1-2-Injection -D release-assets/injection
+          gh run download 35689915558 --repo "$GITHUB_REPOSITORY" -n FacebookPlus-1.0.1-1-Injection -D release-assets/injection
           find release-assets -maxdepth 3 -type f -print
 
       - name: Prepare release assets
