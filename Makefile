@@ -40,6 +40,8 @@ FacebookPlus_FILES = \
 	src/Features/Downloads/FBPReelsDownloader.xm \
 	src/Features/Downloads/FBPStoryDownloader.xm \
 	src/Features/Links/FBPLinkHooks.xm \
+	addons/DeepLinkBridge.xm \
+	addons/FBAudioFix.xm \
 	src/Features/Update/FBPUpdateController.m \
 	src/Features/Update/FBPUpdateChecker.m \
 	src/PluginsInject/PluginsInject.mm \
