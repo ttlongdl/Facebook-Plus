@@ -14,6 +14,9 @@ static BOOL gAllowedExclusivePlayback = NO;
 static NSTimeInterval gLastExclusivePlayback = 0.0;
 static NSTimeInterval gSuppressPlaybackUntil = 0.0;
 static BOOL gMediaControllerAppearedAfterPlayback = NO;
+static NSTimeInterval gExternalDeepLinkIntentUntil = 0.0;
+static BOOL gExternalDeepLinkPlaybackObserved = NO;
+static NSString * const FBPExternalDeepLinkNotification = @"FBPExternalDeepLinkDidOpenNotification";
 
 static void (*oSendEvent)(UIApplication *, SEL, UIEvent *) = NULL;
 static BOOL (*oCategoryError)(AVAudioSession *, SEL, AVAudioSessionCategory, NSError **) = NULL;
@@ -68,6 +71,18 @@ static inline BOOL FBRecentConfirmedTap(void) {
     return gLastConfirmedTap > 0.0 && (now - gLastConfirmedTap) <= 0.85;
 }
 
+static inline BOOL FBExternalDeepLinkWindowActive(void) {
+    return NSProcessInfo.processInfo.systemUptime < gExternalDeepLinkIntentUntil;
+}
+
+static void FBExternalDeepLinkDidOpen(NSNotification *note) {
+    NSString *url = [note.userInfo[@"url"] isKindOfClass:NSString.class] ? note.userInfo[@"url"] : @"(unknown)";
+    NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
+    gExternalDeepLinkIntentUntil = now + 6.0;
+    gExternalDeepLinkPlaybackObserved = NO;
+    FBLog(@"EXTERNAL DEEPLINK armed seconds=6.0 url=%@", url);
+}
+
 static inline BOOL FBPostReleaseGuardActive(void) {
     return NSProcessInfo.processInfo.systemUptime < gSuppressPlaybackUntil;
 }
@@ -83,6 +98,19 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
     NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
     BOOL reelsIntent = gReelsIntentUntil > now;
     if (reelsIntent) {
+        return NO;
+    }
+
+    // Test 1.0.1-2: an external deep link has no touch event. Do not classify
+    // the URL itself. Instead, treat Facebook requesting Playback during a
+    // short post-navigation window as proof that the resolved destination
+    // actually contains autoplaying media (Reel/video). Photo/text/profile
+    // destinations never request Playback, so background audio is untouched.
+    if (FBExternalDeepLinkWindowActive()) {
+        gExternalDeepLinkPlaybackObserved = YES;
+        gLastConfirmedTap = now; // reuse the proven exclusive-playback path
+        gExternalDeepLinkIntentUntil = 0.0; // one-shot; avoid unrelated later media
+        FBLog(@"EXTERNAL DEEPLINK playback observed -> ALLOW exclusive playback");
         return NO;
     }
 
@@ -568,9 +596,15 @@ static void InitFBAudioFix(void) {
 
         NSString *path = FBLogPath();
         if (path) [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
-        FBLog(@"INIT FBAudioFix v0.3.14");
+        FBLog(@"INIT FBAudioFix v0.3.14 fork-test=1.0.1-2");
 
         NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
+        [nc addObserverForName:FBPExternalDeepLinkNotification
+                        object:nil
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(NSNotification *note) {
+            FBExternalDeepLinkDidOpen(note);
+        }];
         [nc addObserverForName:UIApplicationWillResignActiveNotification
                         object:nil
                          queue:NSOperationQueue.mainQueue
