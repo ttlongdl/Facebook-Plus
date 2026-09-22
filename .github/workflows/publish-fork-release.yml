@@ -22,29 +22,30 @@ jobs:
         run: |
           gh release delete v1.1.1 --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
           gh release delete v1.1.0 --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
+          gh release delete v1.0.1-1 --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
 
       - name: Download tested build artifacts
         run: |
           mkdir -p release-assets/build release-assets/injection
-          gh run download 35679421957 --repo "$GITHUB_REPOSITORY" -n Facebook-Plus -D release-assets/build
-          gh run download 35679421957 --repo "$GITHUB_REPOSITORY" -n FacebookPlus-1.0.1-1-Injection -D release-assets/injection
+          gh run download 35689915558 --repo "$GITHUB_REPOSITORY" -n Facebook-Plus -D release-assets/build
+          gh run download 35689915558 --repo "$GITHUB_REPOSITORY" -n FacebookPlus-1.0.1-2-Injection -D release-assets/injection
           find release-assets -maxdepth 3 -type f -print
 
       - name: Prepare release assets
         run: |
           set -euxo pipefail
-          cp release-assets/build/Facebook-Plus-v1.0.1-1-rootless.deb release-assets/Facebook-Plus-v1.0.1-1-rootless.deb
-          cp release-assets/build/Facebook-Plus-v1.0.1-1-rootfull.deb release-assets/Facebook-Plus-v1.0.1-1-rootfull.deb
+          cp release-assets/build/Facebook-Plus-v1.0.1-2-rootless.deb release-assets/Facebook-Plus-v1.0.1-2-rootless.deb
+          cp release-assets/build/Facebook-Plus-v1.0.1-2-rootfull.deb release-assets/Facebook-Plus-v1.0.1-2-rootfull.deb
           cd release-assets/injection
-          zip -r ../FacebookPlus-v1.0.1-1-Injection.zip FacebookPlus.dylib FacebookPlus.bundle README.txt
+          zip -r ../FacebookPlus-v1.0.1-2-Injection.zip FacebookPlus.dylib FacebookPlus.bundle README.txt
           cd ../..
-          test -s release-assets/Facebook-Plus-v1.0.1-1-rootless.deb
-          test -s release-assets/Facebook-Plus-v1.0.1-1-rootfull.deb
-          test -s release-assets/FacebookPlus-v1.0.1-1-Injection.zip
+          test -s release-assets/Facebook-Plus-v1.0.1-2-rootless.deb
+          test -s release-assets/Facebook-Plus-v1.0.1-2-rootfull.deb
+          test -s release-assets/FacebookPlus-v1.0.1-2-Injection.zip
 
-      - name: Publish v1.0.1-1
+      - name: Publish v1.0.1-2
         run: |
-          gh release delete v1.0.1-1 --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
+          gh release delete v1.0.1-2 --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
           printf '%s\n' \
             'Fork release based on SHAJON Facebook Plus 1.0.1.' \
             '' \
@@ -56,14 +57,15 @@ jobs:
             '- Injection ZIP containing FacebookPlus.dylib + FacebookPlus.bundle for TrollFools/manual IPA workflows.' \
             '' \
             'Known limitation:' \
-            '- Reels opened directly from an external deep link may currently mix with existing background audio; normal in-app media/audio behavior remains under test.' \
+            '- External deep links now use media-aware audio handling: actual Facebook playback may take over background audio while non-media destinations keep it playing.' \
+            '- Some complex group/shared links may resolve to the group/feed instead of the exact post; third-party in-app browsers may bypass the Safari extension.' \
             '' \
             'Versioning follows <upstream>-<addon revision>.' > RELEASE_NOTES.md
-          gh release create v1.0.1-1 \
-            release-assets/Facebook-Plus-v1.0.1-1-rootless.deb \
-            release-assets/Facebook-Plus-v1.0.1-1-rootfull.deb \
-            release-assets/FacebookPlus-v1.0.1-1-Injection.zip \
+          gh release create v1.0.1-2 \
+            release-assets/Facebook-Plus-v1.0.1-2-rootless.deb \
+            release-assets/Facebook-Plus-v1.0.1-2-rootfull.deb \
+            release-assets/FacebookPlus-v1.0.1-2-Injection.zip \
             --repo "$GITHUB_REPOSITORY" \
             --target main \
-            --title "Facebook Plus v1.0.1-1 (ttlongdl fork)" \
+            --title "Facebook Plus v1.0.1-2 (ttlongdl fork)" \
             --notes-file RELEASE_NOTES.md
