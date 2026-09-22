@@ -74,6 +74,27 @@ Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `
 
 ---
 
+## 🗺️ Roadmap
+
+Planned upstream features and fixes:
+
+**Feed & Content**
+- [ ] Hide the **Reels overlay** (comment/like/share controls layered over Reels)
+- [ ] Hide **Stories** row from the main feed
+- [ ] Hide **ads on Facebook Marketplace**
+
+**Downloads**
+- [ ] **Multiple-quality** download picker for Reels & videos
+
+**Appearance**
+- [ ] Enhance **OLED Mode** — restore the missing post divider
+- [ ] Fix the unwanted box rendered beside the app-icon image
+
+**Navigation**
+- [ ] Remove the **“Also from Meta”** section from the left sidebar
+
+---
+
 ## 🚀 Installation / Sideload IPA
 
 Jailbreak users can install the appropriate rootless/rootfull package from **[Releases](../../releases)**.
