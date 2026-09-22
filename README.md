@@ -10,7 +10,7 @@
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square"></a>
     <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2017.0%2B-lightgrey.svg?style=flat-square">
-    <img alt="Version" src="https://img.shields.io/badge/Fork%20Version-1.0.1--2-success.svg?style=flat-square">
+    <img alt="Version" src="https://img.shields.io/badge/Fork%20Version-1.0.1--3-success.svg?style=flat-square">
   </p>
 </div>
 
@@ -18,20 +18,20 @@
 
 ## 🔧 ttlongdl Fork — Local Add-ons
 
-This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes isolated so upstream updates can be synced with minimal conflicts. The current fork release is **1.0.1-2**: upstream **1.0.1** plus the local add-on revision.
+This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes isolated so upstream updates can be synced with minimal conflicts. The current fork release is **1.0.1-3**: upstream **1.0.1** plus the local add-on revision.
 
 ### Local additions
 
 - **DeepLinkBridge** — `addons/DeepLinkBridge.xm` restores exact Facebook link routing for sideloaded builds. It accepts the fork's bridge route (`fb://fbbridge/open?url=...`) and forwards the original Facebook HTTPS URL into Facebook through its browsing-web `NSUserActivity` handler, allowing a Reel/post/photo link to open at the intended destination instead of falling back to Home.
 - **FBAudioFix** — `addons/FBAudioFix.xm` reduces unwanted Facebook audio-session takeovers during passive browsing while preserving intentional Facebook media playback. The add-on is compiled directly into `FacebookPlus.dylib`; no separate FBAudioFix dylib is required in the integrated build.
 - **Open in Facebook Safari Extension** — `OpenInFacebookSafariExtension/` is the fork's Safari web extension for sideloaded Facebook. It catches supported Facebook links in Safari and hands them to DeepLinkBridge. The extension is built as `OpenInFacebookSafariExtension.appex` when producing a sideloaded IPA.
-- **Injection export** — GitHub Actions builds the normal rootless/rootfull `.deb` packages and also exports `FacebookPlus.dylib` + `FacebookPlus.bundle` as a separate injection artifact for TrollFools/manual IPA workflows.
+- **Sideload build + Injection export** — GitHub Actions builds rootless/rootfull `.deb` packages. The injection artifact is exported from the libroot-free rootfull build for certificate-safe sideload/manual IPA workflows.
 
-> **External-link behavior in 1.0.1-2:** DeepLinkBridge now signals a short external-navigation window to FBAudioFix. If Facebook actually requests playback while resolving that destination, media is allowed to take over background audio; non-media destinations keep background audio playing. Some complex shared/group links may still resolve to the group/feed rather than the exact post, and links kept inside third-party in-app browsers may bypass the Safari extension entirely.
+> **External-link behavior in 1.0.1-3:** DeepLinkBridge now signals a short external-navigation window to FBAudioFix. If Facebook actually requests playback while resolving that destination, media is allowed to take over background audio; non-media destinations keep background audio playing. Some complex shared/group links may still resolve to the group/feed rather than the exact post, and links kept inside third-party in-app browsers may bypass the Safari extension entirely.
 
 ### Versioning
 
-Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `1.0.1` + the first local add-on revision is `1.0.1-2`; addon-only changes increment the suffix (the current tested revision is `1.0.1-2`). When upstream moves to a new version, the local suffix starts again at `-1`.
+Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `1.0.1` + the first local add-on revision is `1.0.1-3`; addon-only changes increment the suffix (the current tested revision is `1.0.1-3`). When upstream moves to a new version, the local suffix starts again at `-1`.
 
 ## ✨ Features
 
@@ -74,9 +74,13 @@ Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `
 
 ---
 
-## 🚀 Installation
+## 🚀 Installation / Sideload IPA
 
-Download the pre-built `.ipa` file from the **[Releases](../../releases)** section and install it on your device using **Feather**, **Ksing**, or any other sideloading tool of your choice.
+Jailbreak users can install the appropriate rootless/rootfull package from **[Releases](../../releases)**.
+
+For a sideloaded Facebook IPA, use the companion **[Facebook IPA Patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher)**. Fork that repository, open **Actions → Build Facebook Plus Plus IPA**, supply a direct-download URL to your own clean/decrypted Facebook IPA, and let the workflow build and verify the patched IPA. Sign the resulting IPA with your own sideloading method/certificate (for example Feather or SideStore).
+
+The patcher does **not** redistribute a clean Facebook IPA.
 
 ## 🛠️ Building from Source & Automated Injection
 
@@ -108,15 +112,15 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
      | `rootless` | `Facebook-Plus-v<version>-rootless.deb` |
      | `rootfull` | `Facebook-Plus-v<version>-rootfull.deb` |
 
-   - If a decrypted `.ipa` is present, injects the **rootless** build into it with
-     `cyan` and writes `packages/Facebook-Plus-v<facebook-version>-rootless.ipa`.
+   - If a decrypted `.ipa` is present, injects the **rootfull, libroot-free** build into it with
+     `cyan` and writes `packages/Facebook-Plus-v<facebook-version>-sideload.ipa`.
      The same `cyan` run also:
      - builds every Safari web extension under `OpenInFacebookSafariExtension/`
        from source and injects the resulting `.appex` into the app's `PlugIns/`;
      - merges any custom app icons (`fbplus_*.png` in `resources/logo/`) into
        `CFBundleAlternateIcons` via `scripts/icon_plist.py`, preserving
        Facebook's native icons;
-     - fakesigns every injected binary for sideloading.
+     - leaves final certificate signing to the downstream sideloading/signing tool.
 
 
 <details>
