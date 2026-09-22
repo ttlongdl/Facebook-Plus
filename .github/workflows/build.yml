@@ -54,7 +54,7 @@ jobs:
       - name: Export sideload injection assets
         run: |
           set -euxo pipefail
-          ROOTLESS="$(find packages -maxdepth 1 -type f -name '*1.0.1-1-rootless.deb' -print -quit)"
+          ROOTLESS="$(find packages -maxdepth 1 -type f -name '*-rootless.deb' -print -quit)"
           test -n "$ROOTLESS"
           rm -rf injection-export /tmp/fbplus-deb
           mkdir -p injection-export /tmp/fbplus-deb
