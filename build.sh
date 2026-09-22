@@ -72,6 +72,21 @@ build_scheme() {
 		return 1
 	fi
 
+	# Inspect the freshly linked tweak before the next scheme's make clean. A
+	# rootful/sideload-compatible binary must never carry libroot.
+	local dylib
+	dylib="$(find .theos/obj -type f -name 'FacebookPlus.dylib' -print -quit || true)"
+	if [ -z "${dylib}" ]; then
+		echo "error: FacebookPlus.dylib not found after ${label} build" >&2
+		return 1
+	fi
+	echo "==> ${label} Mach-O dependencies:"
+	otool -L "${dylib}"
+	if [ "${label}" = "rootfull" ] && otool -L "${dylib}" | grep -q 'libroot'; then
+		echo "error: rootfull FacebookPlus.dylib unexpectedly links libroot" >&2
+		return 1
+	fi
+
 	mv -f "${built}" "${out}"
 	echo "==> ${label}: ${out}"
 }
@@ -87,12 +102,12 @@ done
 echo "==> Built package(s):"
 ls -1 packages/Facebook-Plus-v${VERSION}-*.deb
 
-# Inject into the IPA only when one is provided. The rootless build is used for
-# sideloading, since cyan re-signs and rewrites the dylib's load path anyway.
-DEB_INJECT="packages/Facebook-Plus-v${VERSION}-rootless.deb"
+# Inject into the IPA only when one is provided. Use the libroot-free rootfull
+# binary as the sideload payload; cyan handles Substrate normalization/embedding.
+DEB_INJECT="packages/Facebook-Plus-v${VERSION}-rootfull.deb"
 if [ -f "$IPA_IN" ]; then
 	if [ ! -f "$DEB_INJECT" ]; then
-		echo "==> $DEB_INJECT not built (rootless not in SCHEMES) — skipping injection."
+		echo "==> $DEB_INJECT not built (rootfull not in SCHEMES) — skipping injection."
 		exit 0
 	fi
 	if ! command -v cyan >/dev/null 2>&1; then
@@ -102,7 +117,7 @@ if [ -f "$IPA_IN" ]; then
 	fi
 
 	# Name the injected IPA after the Facebook build it targets, read from the
-	# IPA's own Info.plist (the rootless build is what cyan injects).
+	# IPA's own Info.plist (the rootfull/libroot-free build is what cyan injects).
 	FB_VERSION="$(python3 scripts/ipa_version.py "$IPA_IN")"
 	IPA_OUT="packages/Facebook-Plus-v${FB_VERSION}-rootless.ipa"
 
@@ -133,7 +148,8 @@ if [ -f "$IPA_IN" ]; then
 	# Safari web extensions bundled into the app's PlugIns (e.g. "Open in
 	# Facebook", which reopens facebook.com links from Safari in the app). Each
 	# is built from source under OpenInFacebookSafariExtension/*/Makefile; cyan
-	# then places the resulting .appex under PlugIns and fakesigns it (-s below).
+	# then places the resulting .appex under PlugIns. Final certificate signing is
+	# intentionally left to Feather/SideStore/the downstream signer.
 	PLUGINS=()
 	shopt -s nullglob
 	for ext_mk in OpenInFacebookSafariExtension/*/Makefile; do
@@ -156,7 +172,7 @@ if [ -f "$IPA_IN" ]; then
 	shopt -u nullglob
 
 	echo "==> Injecting $DEB_INJECT (+ icons${PLUGINS:+ + ${#PLUGINS[@]} extension(s)}) into $IPA_IN with cyan…"
-	cyan -i "$IPA_IN" -o "$IPA_OUT" -f "$DEB_INJECT" "${LOGOS[@]}" "${PLUGINS[@]}" "${MERGE_ARGS[@]}" -uwsgq
+	cyan -i "$IPA_IN" -o "$IPA_OUT" -f "$DEB_INJECT" "${LOGOS[@]}" "${PLUGINS[@]}" "${MERGE_ARGS[@]}" -uwgq
 
 	echo "==> Done. Injected IPA: $IPA_OUT"
 else
