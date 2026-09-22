@@ -10,7 +10,7 @@
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square"></a>
     <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2017.0%2B-lightgrey.svg?style=flat-square">
-    <img alt="Version" src="https://img.shields.io/badge/Fork%20Version-1.0.1--1-success.svg?style=flat-square">
+    <img alt="Version" src="https://img.shields.io/badge/Fork%20Version-1.0.1--2-success.svg?style=flat-square">
   </p>
 </div>
 
@@ -18,7 +18,7 @@
 
 ## 🔧 ttlongdl Fork — Local Add-ons
 
-This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes isolated so upstream updates can be synced with minimal conflicts. The current fork release is **1.0.1-1**: upstream **1.0.1** plus the local add-on revision.
+This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes isolated so upstream updates can be synced with minimal conflicts. The current fork release is **1.0.1-2**: upstream **1.0.1** plus the local add-on revision.
 
 ### Local additions
 
@@ -27,11 +27,11 @@ This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes i
 - **Open in Facebook Safari Extension** — `OpenInFacebookSafariExtension/` is the fork's Safari web extension for sideloaded Facebook. It catches supported Facebook links in Safari and hands them to DeepLinkBridge. The extension is built as `OpenInFacebookSafariExtension.appex` when producing a sideloaded IPA.
 - **Injection export** — GitHub Actions builds the normal rootless/rootfull `.deb` packages and also exports `FacebookPlus.dylib` + `FacebookPlus.bundle` as a separate injection artifact for TrollFools/manual IPA workflows.
 
-> **Current known limitation:** a Reel opened directly through an external deep link can currently play alongside existing background audio. DeepLinkBridge routes the content correctly, but this navigation path bypasses the in-app interaction signal currently used by FBAudioFix to identify intentional media playback. This is being kept explicit rather than treating every external Facebook URL as media, because external links may also target posts, photos, profiles, and other non-media content.
+> **External-link behavior in 1.0.1-2:** DeepLinkBridge now signals a short external-navigation window to FBAudioFix. If Facebook actually requests playback while resolving that destination, media is allowed to take over background audio; non-media destinations keep background audio playing. Some complex shared/group links may still resolve to the group/feed rather than the exact post, and links kept inside third-party in-app browsers may bypass the Safari extension entirely.
 
 ### Versioning
 
-Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `1.0.1` + the first local add-on revision is `1.0.1-1`; addon-only changes increment the suffix. When upstream moves to a new version, the local suffix starts again at `-1`.
+Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `1.0.1` + the first local add-on revision is `1.0.1-2`; addon-only changes increment the suffix (the current tested revision is `1.0.1-2`). When upstream moves to a new version, the local suffix starts again at `-1`.
 
 ## ✨ Features
 
@@ -137,7 +137,8 @@ This generates `compile_commands.json`. Re-run this after adding new source file
 ## 🏗️ Project Architecture
 
 ```text
-├── addons              # ttlongdl local add-ons (DeepLinkBridge, FBAudioFix)\n├── Localizations       # Translations (ar, bn, de, es, fr, hi, id, it, ja, ko, etc.)
+├── addons              # ttlongdl local add-ons (DeepLinkBridge, FBAudioFix)
+├── Localizations       # Translations (ar, bn, de, es, fr, hi, id, it, ja, ko, etc.)
 ├── OpenInFacebookSafariExtension  # Safari web extension built into PlugIns ("Open in Facebook")
 ├── resources           # Assets (App icons, SVGs, and asset bundles)
 │   ├── bundle          # Compiled UI images and tweak resources
@@ -172,7 +173,9 @@ This generates `compile_commands.json`. Re-run this after adding new source file
 
 ## 📜 Provenance & Credits
 
-- **Upstream:** This repository is a fork of **SHAJON-404/Facebook-Plus**. The main Facebook Plus feature set and project architecture remain credited to S. SHAJON; fork-specific additions are documented separately above.\n- **ttlongdl fork add-ons:** DeepLinkBridge, FBAudioFix integration, the Safari “Open in Facebook” routing workflow, and injection-export workflow are maintained in this fork as local additions.\n
+- **Upstream:** This repository is a fork of **SHAJON-404/Facebook-Plus**. The main Facebook Plus feature set and project architecture remain credited to S. SHAJON; fork-specific additions are documented separately above.
+- **ttlongdl fork add-ons:** DeepLinkBridge, FBAudioFix integration, the Safari “Open in Facebook” routing workflow, and injection-export workflow are maintained in this fork as local additions.
+
 - **Idea & Inspiration:** The core concept of this tweak was inspired by the closed-source Facebook tweak **[Glow](https://github.com/dayanch96/Glow)**. This project is a clean reimplementation based on its behavioral analysis.
 - **Story & Reels Downloader:** The media download feature (`src/Features/Downloads/`) was contributed by **[ttlongdl](https://github.com/ttlongdl/Facebook-Plus)** via their GPLv3 fork, and is integrated here with attribution as required by the license.
 - **"Open in Facebook" Safari Extension:** The bundled Safari web extension (`OpenInFacebookSafariExtension/`, built from source into the IPA) is our own, independently written implementation — its own `NSExtension` host, manifest and link-routing scripts, with no third-party binary or source bundled. See `OpenInFacebookSafariExtension/README.md` for details.
