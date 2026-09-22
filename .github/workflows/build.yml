@@ -51,6 +51,29 @@ jobs:
       - name: Build
         run: ./build.sh
 
+      - name: Export sideload injection assets
+        run: |
+          set -euxo pipefail
+          ROOTLESS="$(find packages -maxdepth 1 -type f -name '*1.0.1-1-rootless.deb' -print -quit)"
+          test -n "$ROOTLESS"
+          rm -rf injection-export /tmp/fbplus-deb
+          mkdir -p injection-export /tmp/fbplus-deb
+          dpkg-deb -x "$ROOTLESS" /tmp/fbplus-deb
+          DYLIB="$(find /tmp/fbplus-deb -type f -name 'FacebookPlus.dylib' -print -quit)"
+          BUNDLE="$(find /tmp/fbplus-deb -type d -name 'FacebookPlus.bundle' -print -quit)"
+          test -f "$DYLIB"
+          test -d "$BUNDLE"
+          cp "$DYLIB" injection-export/FacebookPlus.dylib
+          cp -R "$BUNDLE" injection-export/FacebookPlus.bundle
+          echo "DeepLinkBridge and FBAudioFix are compiled into FacebookPlus.dylib." > injection-export/README.txt
+
+      - name: Upload injection assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: FacebookPlus-1.0.1-1-Injection
+          path: injection-export/
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload built packages
         uses: actions/upload-artifact@v4
