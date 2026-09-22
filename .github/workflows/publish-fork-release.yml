@@ -45,6 +45,20 @@ jobs:
       - name: Publish v1.0.1-1
         run: |
           gh release delete v1.0.1-1 --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
+          printf '%s\n' \
+            'Fork release based on SHAJON Facebook Plus 1.0.1.' \
+            '' \
+            'Local additions:' \
+            '- DeepLinkBridge integrated into FacebookPlus.dylib.' \
+            '- FBAudioFix integrated into FacebookPlus.dylib.' \
+            '- Open in Facebook Safari extension source and sideload routing support.' \
+            '- Rootless and rootfull jailbreak packages.' \
+            '- Injection ZIP containing FacebookPlus.dylib + FacebookPlus.bundle for TrollFools/manual IPA workflows.' \
+            '' \
+            'Known limitation:' \
+            '- Reels opened directly from an external deep link may currently mix with existing background audio; normal in-app media/audio behavior remains under test.' \
+            '' \
+            'Versioning follows <upstream>-<addon revision>.' > RELEASE_NOTES.md
           gh release create v1.0.1-1 \
             release-assets/Facebook-Plus-v1.0.1-1-rootless.deb \
             release-assets/Facebook-Plus-v1.0.1-1-rootfull.deb \
@@ -52,16 +66,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target main \
             --title "Facebook Plus v1.0.1-1 (ttlongdl fork)" \
-            --notes "Fork release based on SHAJON Facebook Plus 1.0.1.
-
-Local additions:
-- DeepLinkBridge integrated into FacebookPlus.dylib.
-- FBAudioFix integrated into FacebookPlus.dylib.
-- Open in Facebook Safari extension source and sideload routing support.
-- Rootless and rootfull jailbreak packages.
-- Injection ZIP containing FacebookPlus.dylib + FacebookPlus.bundle for TrollFools/manual IPA workflows.
-
-Known limitation:
-- Reels opened directly from an external deep link may currently mix with existing background audio; normal in-app media/audio behavior remains under test.
-
-Versioning follows <upstream>-<addon revision>."
+            --notes-file RELEASE_NOTES.md
