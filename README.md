@@ -16,6 +16,18 @@
 
 ---
 
+## 🍴 About this fork
+
+This repository is a **community fork of [SHAJON-404/Facebook-Plus](https://github.com/SHAJON-404/Facebook-Plus)**. The original Facebook Plus project, core tweak, and upstream feature work are by **SHAJON-404 and its contributors**.
+
+This fork is **not the official/upstream Facebook Plus repository**. It tracks upstream while maintaining additional integration work focused on sideloading and local add-ons, including DeepLinkBridge, FBAudioFix, certificate-safe/libroot-free packaging, and the companion IPA patching workflow.
+
+If you want the original project or upstream development, use **[SHAJON-404/Facebook-Plus](https://github.com/SHAJON-404/Facebook-Plus)**. Fork-specific changes are documented below so they can be clearly distinguished from upstream work.
+
+> This fork keeps upstream attribution and GPLv3 licensing. Fork-specific additions should not be interpreted as features or support commitments from the upstream maintainer.
+
+---
+
 ## 🔧 ttlongdl Fork — Local Add-ons
 
 This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes isolated so upstream updates can be synced with minimal conflicts. The current fork release is **1.0.1-3**: upstream **1.0.1** plus the local add-on revision.
