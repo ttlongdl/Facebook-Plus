@@ -2,9 +2,6 @@ name: Publish Fork Release
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/publish-fork-release.yml"
 
 permissions:
   contents: write
