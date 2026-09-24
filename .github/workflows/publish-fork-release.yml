@@ -27,25 +27,28 @@ jobs:
       - name: Download tested build artifacts
         run: |
           mkdir -p release-assets/build release-assets/injection
-          gh run download 35731358312 --repo "$GITHUB_REPOSITORY" -n Facebook-Plus -D release-assets/build
-          gh run download 35731358312 --repo "$GITHUB_REPOSITORY" -n FacebookPlus-1.0.1-3-Injection -D release-assets/injection
+          BUILD_RUN="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow Build --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$BUILD_RUN"
+          echo "Using successful main Build run: $BUILD_RUN"
+          gh run download "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" -n Facebook-Plus -D release-assets/build
+          gh run download "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" -n FacebookPlus-1.0.1-4-Injection -D release-assets/injection
           find release-assets -maxdepth 3 -type f -print
 
       - name: Prepare release assets
         run: |
           set -euxo pipefail
-          cp release-assets/build/Facebook-Plus-v1.0.1-3-rootless.deb release-assets/Facebook-Plus-v1.0.1-3-rootless.deb
-          cp release-assets/build/Facebook-Plus-v1.0.1-3-rootfull.deb release-assets/Facebook-Plus-v1.0.1-3-rootfull.deb
+          cp release-assets/build/Facebook-Plus-v1.0.1-4-rootless.deb release-assets/Facebook-Plus-v1.0.1-4-rootless.deb
+          cp release-assets/build/Facebook-Plus-v1.0.1-4-rootfull.deb release-assets/Facebook-Plus-v1.0.1-4-rootfull.deb
           cd release-assets/injection
-          zip -r ../FacebookPlus-v1.0.1-3-Injection.zip FacebookPlus.dylib FacebookPlus.bundle README.txt
+          zip -r ../FacebookPlus-v1.0.1-4-Injection.zip FacebookPlus.dylib FacebookPlus.bundle README.txt
           cd ../..
-          test -s release-assets/Facebook-Plus-v1.0.1-3-rootless.deb
-          test -s release-assets/Facebook-Plus-v1.0.1-3-rootfull.deb
-          test -s release-assets/FacebookPlus-v1.0.1-3-Injection.zip
+          test -s release-assets/Facebook-Plus-v1.0.1-4-rootless.deb
+          test -s release-assets/Facebook-Plus-v1.0.1-4-rootfull.deb
+          test -s release-assets/FacebookPlus-v1.0.1-4-Injection.zip
 
-      - name: Publish v1.0.1-3
+      - name: Publish v1.0.1-4
         run: |
-          gh release delete v1.0.1-3 --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
+          gh release delete v1.0.1-4 --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
           printf '%s\n' \
             'Fork release based on SHAJON Facebook Plus 1.0.1.' \
             '' \
@@ -55,17 +58,19 @@ jobs:
             '- Open in Facebook Safari extension source and sideload routing support.' \
             '- Rootless and rootfull jailbreak packages.' \
             '- Injection ZIP is exported from the libroot-free rootfull build for sideload/manual IPA workflows.' \
+            '- Deployment target lowered to iOS 15.0 for compatibility with free Apple-ID/AltStore re-signing.' \
+            '- Added Tiếng Việt to the Facebook Plus language picker.' \
             '' \
             'Known limitation:' \
             '- External deep links now use media-aware audio handling: actual Facebook playback may take over background audio while non-media destinations keep it playing.' \
             '- Some complex group/shared links may resolve to the group/feed instead of the exact post; third-party in-app browsers may bypass the Safari extension.' \
             '' \
             'Versioning follows <upstream>-<addon revision>.' > RELEASE_NOTES.md
-          gh release create v1.0.1-3 \
-            release-assets/Facebook-Plus-v1.0.1-3-rootless.deb \
-            release-assets/Facebook-Plus-v1.0.1-3-rootfull.deb \
-            release-assets/FacebookPlus-v1.0.1-3-Injection.zip \
+          gh release create v1.0.1-4 \
+            release-assets/Facebook-Plus-v1.0.1-4-rootless.deb \
+            release-assets/Facebook-Plus-v1.0.1-4-rootfull.deb \
+            release-assets/FacebookPlus-v1.0.1-4-Injection.zip \
             --repo "$GITHUB_REPOSITORY" \
             --target main \
-            --title "Facebook Plus v1.0.1-3 (ttlongdl fork)" \
+            --title "Facebook Plus v1.0.1-4 (ttlongdl fork)" \
             --notes-file RELEASE_NOTES.md
