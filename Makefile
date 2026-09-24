@@ -1,4 +1,4 @@
-TARGET := iphone:clang:latest:14.0
+TARGET := iphone:clang:latest:15.0
 # arm64 only. This targets iPhone 11 → latest, all sideloaded / re-signed: those
 # apps run in the arm64 slice even on A12+ (arm64e) devices — the arm64e slice is
 # reserved for Apple-signed platform binaries — so an injected arm64e slice would
@@ -62,7 +62,7 @@ else
 FBP_USE_ROOTLESS_PATHS := 0
 endif
 
-FacebookPlus_CFLAGS  = -fobjc-arc -Wno-deprecated-declarations -Wno-unguarded-availability-new \
+FacebookPlus_CFLAGS  = -fobjc-arc -Wno-deprecated-declarations \
 	-DFBP_VERSION='@"$(FBP_VERSION)"' \
 	-DFBP_USE_ROOTLESS_PATHS=$(FBP_USE_ROOTLESS_PATHS) \
 	-Isrc/Core -Isrc/UI/Toast -Isrc/UI/Sheet -Isrc/Settings \
