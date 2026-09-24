@@ -62,7 +62,7 @@ else
 FBP_USE_ROOTLESS_PATHS := 0
 endif
 
-FacebookPlus_CFLAGS  = -fobjc-arc -Wno-deprecated-declarations \
+FacebookPlus_CFLAGS  = -fobjc-arc -Wno-deprecated-declarations -Wno-unguarded-availability-new \
 	-DFBP_VERSION='@"$(FBP_VERSION)"' \
 	-DFBP_USE_ROOTLESS_PATHS=$(FBP_USE_ROOTLESS_PATHS) \
 	-Isrc/Core -Isrc/UI/Toast -Isrc/UI/Sheet -Isrc/Settings \
