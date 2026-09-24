@@ -1,4 +1,4 @@
-TARGET := iphone:clang:latest:17.0
+TARGET := iphone:clang:latest:15.0
 # arm64 only. This targets iPhone 11 → latest, all sideloaded / re-signed: those
 # apps run in the arm64 slice even on A12+ (arm64e) devices — the arm64e slice is
 # reserved for Apple-signed platform binaries — so an injected arm64e slice would
