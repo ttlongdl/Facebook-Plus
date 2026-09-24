@@ -2,6 +2,9 @@ name: Publish Fork Release
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".release-v1.0.1-4"
 
 permissions:
   contents: write
