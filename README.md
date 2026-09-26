@@ -30,7 +30,7 @@ If you want the original project or upstream development, use **[SHAJON-404/Face
 
 ## 🔧 ttlongdl Fork — Local Add-ons
 
-This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes isolated so upstream updates can be synced with minimal conflicts. The current fork release is **1.0.1-4**: upstream **1.0.1** plus the local add-on revision.
+This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes isolated so upstream updates can be synced with minimal conflicts. The current fork release is **1.0.1-5**: upstream **1.0.1** plus the local add-on revision.
 
 ### Local additions
 
@@ -39,11 +39,11 @@ This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes i
 - **Open in Facebook Safari Extension** — `OpenInFacebookSafariExtension/` is the fork's Safari web extension for sideloaded Facebook. It catches supported Facebook links in Safari and hands them to DeepLinkBridge. The extension is built as `OpenInFacebookSafariExtension.appex` when producing a sideloaded IPA.
 - **Sideload build + Injection export** — GitHub Actions builds rootless/rootfull `.deb` packages. The injection artifact is exported from the libroot-free rootfull build for certificate-safe sideload/manual IPA workflows.
 
-> **External-link behavior in 1.0.1-4:** DeepLinkBridge now signals a short external-navigation window to FBAudioFix. If Facebook actually requests playback while resolving that destination, media is allowed to take over background audio; non-media destinations keep background audio playing. Some complex shared/group links may still resolve to the group/feed rather than the exact post, and links kept inside third-party in-app browsers may bypass the Safari extension entirely.
+> **External-link behavior in 1.0.1-5:** DeepLinkBridge now signals a short external-navigation window to FBAudioFix. If Facebook actually requests playback while resolving that destination, media is allowed to take over background audio; non-media destinations keep background audio playing. Some complex shared/group links may still resolve to the group/feed rather than the exact post, and links kept inside third-party in-app browsers may bypass the Safari extension entirely.
 
 ### Versioning
 
-Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `1.0.1` + the first local add-on revision is `1.0.1-4`; addon-only changes increment the suffix (the current tested revision is `1.0.1-4`). When upstream moves to a new version, the local suffix starts again at `-1`.
+Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `1.0.1` + the first local add-on revision is `1.0.1-5`; addon-only changes increment the suffix (the current tested revision is `1.0.1-5`). When upstream moves to a new version, the local suffix starts again at `-1`.
 
 ## ✨ Features
 
