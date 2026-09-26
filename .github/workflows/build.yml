@@ -79,7 +79,7 @@ jobs:
       - name: Upload injection assets
         uses: actions/upload-artifact@v4
         with:
-          name: FacebookPlus-1.0.1-4-Injection
+          name: FacebookPlus-1.0.1-5-Injection
           path: injection-export/
           if-no-files-found: error
           retention-days: 30
