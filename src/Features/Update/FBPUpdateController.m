@@ -32,12 +32,21 @@ static const CGFloat kButtonHeight = 54.0;
                              forkVersion:(NSString *)forkVersion
                                changelog:(NSString *)changelog {
     if ((self = [super init])) {
-        NSCharacterSet *trim = [NSCharacterSet characterSetWithCharactersInString:@"vV "];
-        _installedVersion = [installedVersion stringByTrimmingCharactersInSet:trim];
-        _upstreamVersion = upstreamVersion.length
-            ? [upstreamVersion stringByTrimmingCharactersInSet:trim] : @"Unavailable";
-        _forkVersion = forkVersion.length
-            ? [forkVersion stringByTrimmingCharactersInSet:trim] : @"Unavailable";
+        NSCharacterSet *whitespace = NSCharacterSet.whitespaceAndNewlineCharacterSet;
+        NSString *(^cleanVersion)(NSString *) = ^NSString *(NSString *value) {
+            NSString *clean = [value stringByTrimmingCharactersInSet:whitespace];
+            if ([clean hasPrefix:@"Version:"]) {
+                clean = [[clean substringFromIndex:@"Version:".length]
+                    stringByTrimmingCharactersInSet:whitespace];
+            }
+            if ([clean hasPrefix:@"v"] || [clean hasPrefix:@"V"]) {
+                clean = [clean substringFromIndex:1];
+            }
+            return clean;
+        };
+        _installedVersion = cleanVersion(installedVersion);
+        _upstreamVersion = upstreamVersion.length ? cleanVersion(upstreamVersion) : @"Unavailable";
+        _forkVersion = forkVersion.length ? cleanVersion(forkVersion) : @"Unavailable";
         _changelog = changelog.length ? changelog : FBPL(@"update.nochangelog");
     }
     return self;
@@ -131,7 +140,7 @@ static const CGFloat kButtonHeight = 54.0;
     }
 
     UILabel *title = [[UILabel alloc] init];
-    title.text = @"Update Checking - Kiểm tra cập nhật";
+    title.text = @"Checking Update";
     title.font = [UIFont systemFontOfSize:28 weight:UIFontWeightBold];
     title.textColor = UIColor.labelColor;
     title.textAlignment = NSTextAlignmentCenter;
