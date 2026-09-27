@@ -62,7 +62,7 @@ jobs:
             '- External deep links now use media-aware audio handling: actual Facebook playback may take over background audio while non-media destinations keep it playing.' \
             '- Some complex group/shared links may resolve to the group/feed instead of the exact post; third-party in-app browsers may bypass the Safari extension.' \
             '' \
-            'Versioning follows <upstream>-<addon revision>.' > RELEASE_NOTES.md
+            > RELEASE_NOTES.md
           gh release create v1.0.1-5 \
             release-assets/Facebook-Plus-v1.0.1-5-rootless.deb \
             release-assets/Facebook-Plus-v1.0.1-5-rootfull.deb \
