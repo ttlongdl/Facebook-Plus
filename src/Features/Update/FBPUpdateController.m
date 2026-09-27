@@ -8,25 +8,45 @@
 #import "FBPSheet.h"
 
 static NSString *const kTelegramURL = @"https://t.me/ReFacebookPlus";
-static NSString *const kGitHubURL =
+static NSString *const kUpstreamGitHubURL =
     @"https://github.com/SHAJON-404/Facebook-Plus/releases/latest/";
+static NSString *const kForkGitHubURL =
+    @"https://github.com/ttlongdl/Facebook-Plus/releases/latest/";
 
 static const CGFloat kLogoSize     = 46.0;
 static const CGFloat kSideMargin   = 24.0;
 static const CGFloat kButtonHeight = 54.0;
 
 @interface FBPUpdateController ()
-@property (nonatomic, copy) NSString *version;
+@property (nonatomic, copy) NSString *installedVersion;
+@property (nonatomic, copy) NSString *upstreamVersion;
+@property (nonatomic, copy) NSString *forkVersion;
 @property (nonatomic, copy) NSString *changelog;
 @property (nonatomic, strong) CAGradientLayer *backgroundGradient;
 @end
 
 @implementation FBPUpdateController
 
-- (instancetype)initWithVersion:(NSString *)version changelog:(NSString *)changelog {
+- (instancetype)initWithInstalledVersion:(NSString *)installedVersion
+                         upstreamVersion:(NSString *)upstreamVersion
+                             forkVersion:(NSString *)forkVersion
+                               changelog:(NSString *)changelog {
     if ((self = [super init])) {
-        _version = [version stringByTrimmingCharactersInSet:
-                    [NSCharacterSet characterSetWithCharactersInString:@"vV "]];
+        NSCharacterSet *whitespace = NSCharacterSet.whitespaceAndNewlineCharacterSet;
+        NSString *(^cleanVersion)(NSString *) = ^NSString *(NSString *value) {
+            NSString *clean = [value stringByTrimmingCharactersInSet:whitespace];
+            if ([clean hasPrefix:@"Version:"]) {
+                clean = [[clean substringFromIndex:@"Version:".length]
+                    stringByTrimmingCharactersInSet:whitespace];
+            }
+            if ([clean hasPrefix:@"v"] || [clean hasPrefix:@"V"]) {
+                clean = [clean substringFromIndex:1];
+            }
+            return clean;
+        };
+        _installedVersion = cleanVersion(installedVersion);
+        _upstreamVersion = upstreamVersion.length ? cleanVersion(upstreamVersion) : @"Unavailable";
+        _forkVersion = forkVersion.length ? cleanVersion(forkVersion) : @"Unavailable";
         _changelog = changelog.length ? changelog : FBPL(@"update.nochangelog");
     }
     return self;
@@ -51,6 +71,7 @@ static const CGFloat kButtonHeight = 54.0;
     [scroll addSubview:content];
 
     [content addArrangedSubview:[self headerView]];
+    [content addArrangedSubview:[self statusCard]];
     [content addArrangedSubview:[self changelogCard]];
 
     UIView *bottom = [self bottomBar];
@@ -119,7 +140,7 @@ static const CGFloat kButtonHeight = 54.0;
     }
 
     UILabel *title = [[UILabel alloc] init];
-    title.text = FBPL(@"update.title");
+    title.text = @"Checking Update";
     title.font = [UIFont systemFontOfSize:28 weight:UIFontWeightBold];
     title.textColor = UIColor.labelColor;
     title.textAlignment = NSTextAlignmentCenter;
@@ -127,7 +148,7 @@ static const CGFloat kButtonHeight = 54.0;
     [stack addArrangedSubview:title];
 
     UILabel *subtitle = [[UILabel alloc] init];
-    subtitle.text = [NSString stringWithFormat:FBPL(@"update.subtitle"), self.version];
+    subtitle.text = [NSString stringWithFormat:@"Installed version: %@ by TTLongDL Fork", self.installedVersion];
     subtitle.font = [UIFont systemFontOfSize:15 weight:UIFontWeightRegular];
     subtitle.textColor = UIColor.secondaryLabelColor;
     subtitle.textAlignment = NSTextAlignmentCenter;
@@ -135,6 +156,34 @@ static const CGFloat kButtonHeight = 54.0;
     [stack addArrangedSubview:subtitle];
 
     return stack;
+}
+
+#pragma mark - Update status
+
+- (UIView *)statusCard {
+    UIView *card = [[UIView alloc] init];
+    card.backgroundColor = [UIColor.labelColor colorWithAlphaComponent:0.08];
+    card.layer.cornerRadius = 16;
+    card.layer.cornerCurve = kCACornerCurveContinuous;
+
+    UILabel *body = [[UILabel alloc] init];
+    body.text = [NSString stringWithFormat:
+        @"Official / Upstream\nSHAJON-404/Facebook-Plus\nLatest: %@\n\n"
+         "TTLongDL Fork\nttlongdl/Facebook-Plus\nLatest: %@",
+        self.upstreamVersion, self.forkVersion];
+    body.font = [UIFont systemFontOfSize:15 weight:UIFontWeightRegular];
+    body.textColor = UIColor.labelColor;
+    body.numberOfLines = 0;
+    body.translatesAutoresizingMaskIntoConstraints = NO;
+    [card addSubview:body];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [body.topAnchor constraintEqualToAnchor:card.topAnchor constant:16],
+        [body.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:16],
+        [body.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-16],
+        [body.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-16],
+    ]];
+    return card;
 }
 
 #pragma mark - Changelog
@@ -186,15 +235,18 @@ static const CGFloat kButtonHeight = 54.0;
     hairline.translatesAutoresizingMaskIntoConstraints = NO;
     [bar addSubview:hairline];
 
-    // GitHub on top, Telegram below, then Later — all the same card-box style.
-    UIButton *github = [self cardButtonWithImage:@"github" title:FBPL(@"update.github")
-                                       tintImage:YES action:@selector(openGitHub)];
-    UIButton *telegram = [self cardButtonWithImage:@"telegram" title:FBPL(@"update.telegram")
+    // Keep upstream destinations first; the TTLongDL fork remains last.
+    UIButton *upstream = [self cardButtonWithImage:@"github" title:@"Official GitHub — SHAJON-404"
+                                         tintImage:YES action:@selector(openUpstreamGitHub)];
+    UIButton *telegram = [self cardButtonWithImage:@"telegram" title:@"Official Telegram — SHAJON-404"
                                          tintImage:NO action:@selector(openTelegram)];
+    UIButton *fork = [self cardButtonWithImage:@"github" title:@"Fork GitHub — TTLongDL"
+                                     tintImage:YES action:@selector(openForkGitHub)];
     UIButton *later = [self cardButtonWithImage:nil title:FBPL(@"update.later")
                                       tintImage:NO action:@selector(dismissTapped)];
 
-    [bar addSubview:github];
+    [bar addSubview:upstream];
+    [bar addSubview:fork];
     [bar addSubview:telegram];
     [bar addSubview:later];
 
@@ -204,17 +256,22 @@ static const CGFloat kButtonHeight = 54.0;
         [hairline.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor],
         [hairline.heightAnchor constraintEqualToConstant:1.0 / UIScreen.mainScreen.scale],
 
-        [github.topAnchor constraintEqualToAnchor:bar.topAnchor constant:16],
-        [github.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:kSideMargin],
-        [github.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
-        [github.heightAnchor constraintEqualToConstant:kButtonHeight],
+        [upstream.topAnchor constraintEqualToAnchor:bar.topAnchor constant:16],
+        [upstream.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:kSideMargin],
+        [upstream.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
+        [upstream.heightAnchor constraintEqualToConstant:kButtonHeight],
 
-        [telegram.topAnchor constraintEqualToAnchor:github.bottomAnchor constant:12],
+        [telegram.topAnchor constraintEqualToAnchor:upstream.bottomAnchor constant:12],
         [telegram.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:kSideMargin],
         [telegram.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
         [telegram.heightAnchor constraintEqualToConstant:kButtonHeight],
 
-        [later.topAnchor constraintEqualToAnchor:telegram.bottomAnchor constant:12],
+        [fork.topAnchor constraintEqualToAnchor:telegram.bottomAnchor constant:12],
+        [fork.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:kSideMargin],
+        [fork.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
+        [fork.heightAnchor constraintEqualToConstant:kButtonHeight],
+
+        [later.topAnchor constraintEqualToAnchor:fork.bottomAnchor constant:12],
         [later.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:kSideMargin],
         [later.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
         [later.heightAnchor constraintEqualToConstant:kButtonHeight],
@@ -274,7 +331,8 @@ static const CGFloat kButtonHeight = 54.0;
 #pragma mark - Actions
 
 - (void)openTelegram { [self openURLString:kTelegramURL]; }
-- (void)openGitHub   { [self openURLString:kGitHubURL]; }
+- (void)openUpstreamGitHub { [self openURLString:kUpstreamGitHubURL]; }
+- (void)openForkGitHub { [self openURLString:kForkGitHubURL]; }
 - (void)dismissTapped { [self dismissViewControllerAnimated:YES completion:nil]; }
 
 - (void)openURLString:(NSString *)string {
