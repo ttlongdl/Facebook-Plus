@@ -49,7 +49,7 @@ static void FBPFetchRelease(NSString *apiURL,
     [request setValue:@"application/vnd.github+json" forHTTPHeaderField:@"Accept"];
     [request setValue:@"Facebook-Plus" forHTTPHeaderField:@"User-Agent"];
 
-    [NSURLSession.sharedSession dataTaskWithRequest:request
+    NSURLSessionDataTask *task = [NSURLSession.sharedSession dataTaskWithRequest:request
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         if (error || ![data isKindOfClass:NSData.class]) {
             completion(nil, nil, error ?: [NSError errorWithDomain:@"FBPUpdate" code:1 userInfo:nil]);
@@ -63,7 +63,8 @@ static void FBPFetchRelease(NSString *apiURL,
         }
         NSString *body = [json[@"body"] isKindOfClass:NSString.class] ? json[@"body"] : @"";
         completion(tag, body, nil);
-    }].resume;
+    }];
+    [task resume];
 }
 
 @implementation FBPUpdateChecker
