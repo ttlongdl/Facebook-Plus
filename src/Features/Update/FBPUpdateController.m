@@ -131,7 +131,7 @@ static const CGFloat kButtonHeight = 54.0;
     }
 
     UILabel *title = [[UILabel alloc] init];
-    title.text = FBPL(@"update.title");
+    title.text = @"Update Checking - Kiểm tra cập nhật";
     title.font = [UIFont systemFontOfSize:28 weight:UIFontWeightBold];
     title.textColor = UIColor.labelColor;
     title.textAlignment = NSTextAlignmentCenter;
@@ -139,7 +139,7 @@ static const CGFloat kButtonHeight = 54.0;
     [stack addArrangedSubview:title];
 
     UILabel *subtitle = [[UILabel alloc] init];
-    subtitle.text = [NSString stringWithFormat:@"Installed version %@", self.installedVersion];
+    subtitle.text = [NSString stringWithFormat:@"Installed version: %@ by TTLongDL Fork", self.installedVersion];
     subtitle.font = [UIFont systemFontOfSize:15 weight:UIFontWeightRegular];
     subtitle.textColor = UIColor.secondaryLabelColor;
     subtitle.textAlignment = NSTextAlignmentCenter;
@@ -226,13 +226,13 @@ static const CGFloat kButtonHeight = 54.0;
     hairline.translatesAutoresizingMaskIntoConstraints = NO;
     [bar addSubview:hairline];
 
-    // Keep upstream attribution explicit and provide a separate fork destination.
+    // Keep upstream destinations first; the TTLongDL fork remains last.
     UIButton *upstream = [self cardButtonWithImage:@"github" title:@"Official GitHub — SHAJON-404"
                                          tintImage:YES action:@selector(openUpstreamGitHub)];
+    UIButton *telegram = [self cardButtonWithImage:@"telegram" title:@"Official Telegram — SHAJON-404"
+                                         tintImage:NO action:@selector(openTelegram)];
     UIButton *fork = [self cardButtonWithImage:@"github" title:@"Fork GitHub — TTLongDL"
                                      tintImage:YES action:@selector(openForkGitHub)];
-    UIButton *telegram = [self cardButtonWithImage:@"telegram" title:FBPL(@"update.telegram")
-                                         tintImage:NO action:@selector(openTelegram)];
     UIButton *later = [self cardButtonWithImage:nil title:FBPL(@"update.later")
                                       tintImage:NO action:@selector(dismissTapped)];
 
@@ -252,17 +252,17 @@ static const CGFloat kButtonHeight = 54.0;
         [upstream.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
         [upstream.heightAnchor constraintEqualToConstant:kButtonHeight],
 
-        [fork.topAnchor constraintEqualToAnchor:upstream.bottomAnchor constant:12],
-        [fork.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:kSideMargin],
-        [fork.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
-        [fork.heightAnchor constraintEqualToConstant:kButtonHeight],
-
-        [telegram.topAnchor constraintEqualToAnchor:fork.bottomAnchor constant:12],
+        [telegram.topAnchor constraintEqualToAnchor:upstream.bottomAnchor constant:12],
         [telegram.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:kSideMargin],
         [telegram.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
         [telegram.heightAnchor constraintEqualToConstant:kButtonHeight],
 
-        [later.topAnchor constraintEqualToAnchor:telegram.bottomAnchor constant:12],
+        [fork.topAnchor constraintEqualToAnchor:telegram.bottomAnchor constant:12],
+        [fork.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:kSideMargin],
+        [fork.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
+        [fork.heightAnchor constraintEqualToConstant:kButtonHeight],
+
+        [later.topAnchor constraintEqualToAnchor:fork.bottomAnchor constant:12],
         [later.leadingAnchor constraintEqualToAnchor:bar.leadingAnchor constant:kSideMargin],
         [later.trailingAnchor constraintEqualToAnchor:bar.trailingAnchor constant:-kSideMargin],
         [later.heightAnchor constraintEqualToConstant:kButtonHeight],
