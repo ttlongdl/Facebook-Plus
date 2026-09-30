@@ -14,6 +14,9 @@ static BOOL gAllowedExclusivePlayback = NO;
 static NSTimeInterval gLastExclusivePlayback = 0.0;
 static NSTimeInterval gSuppressPlaybackUntil = 0.0;
 static BOOL gMediaControllerAppearedAfterPlayback = NO;
+static BOOL gExclusiveBeforeResignActive = NO;
+static BOOL gEnteredBackgroundAfterResign = NO;
+static NSTimeInterval gResumeExclusiveIntentUntil = 0.0;
 static NSTimeInterval gExternalDeepLinkIntentUntil = 0.0;
 static BOOL gExternalDeepLinkPlaybackObserved = NO;
 static NSString * const FBPExternalDeepLinkNotification = @"FBPExternalDeepLinkDidOpenNotification";
@@ -26,37 +29,9 @@ static BOOL (*oCategoryModeRouteOptions)(AVAudioSession *, SEL, AVAudioSessionCa
 
 static void (*oVCViewDidAppear)(UIViewController *, SEL, BOOL) = NULL;
 static void (*oVCViewDidDisappear)(UIViewController *, SEL, BOOL) = NULL;
+static void (*oStoryBucketViewDidDisappear)(UIViewController *, SEL, BOOL) = NULL;
 
-static NSString *FBLogPath(void) {
-    NSArray<NSString *> *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    if (paths.count == 0) return nil;
-    return [paths.firstObject stringByAppendingPathComponent:@"FBAudioFix-v0.3.14.txt"];
-}
-
-static void FBLog(NSString *format, ...) NS_FORMAT_FUNCTION(1,2);
-static void FBLog(NSString *format, ...) {
-    va_list args;
-    va_start(args, format);
-    NSString *body = [[NSString alloc] initWithFormat:format arguments:args];
-    va_end(args);
-
-    NSString *path = FBLogPath();
-    if (!path) return;
-
-    NSString *line = [NSString stringWithFormat:@"%@ %@\n", [NSDate date], body];
-    NSData *data = [line dataUsingEncoding:NSUTF8StringEncoding];
-
-    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
-        [data writeToFile:path atomically:YES];
-        return;
-    }
-
-    NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:path];
-    if (!handle) return;
-    [handle seekToEndOfFile];
-    [handle writeData:data];
-    [handle closeFile];
-}
+static void FBLog(NSString *format, ...) { (void)format; }
 
 static inline BOOL FBIsPlayback(AVAudioSessionCategory category) {
     return [category isEqualToString:AVAudioSessionCategoryPlayback];
@@ -76,11 +51,9 @@ static inline BOOL FBExternalDeepLinkWindowActive(void) {
 }
 
 static void FBExternalDeepLinkDidOpen(NSNotification *note) {
-    NSString *url = [note.userInfo[@"url"] isKindOfClass:NSString.class] ? note.userInfo[@"url"] : @"(unknown)";
-    NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
-    gExternalDeepLinkIntentUntil = now + 6.0;
+    (void)note;
+    gExternalDeepLinkIntentUntil = NSProcessInfo.processInfo.systemUptime + 6.0;
     gExternalDeepLinkPlaybackObserved = NO;
-    FBLog(@"EXTERNAL DEEPLINK armed seconds=6.0 url=%@", url);
 }
 
 static inline BOOL FBPostReleaseGuardActive(void) {
@@ -97,20 +70,15 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
 
     NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
     BOOL reelsIntent = gReelsIntentUntil > now;
-    if (reelsIntent) {
+    BOOL resumeExclusiveIntent = gResumeExclusiveIntentUntil > now;
+    if (reelsIntent || resumeExclusiveIntent) {
         return NO;
     }
 
-    // Test 1.0.1-2: an external deep link has no touch event. Do not classify
-    // the URL itself. Instead, treat Facebook requesting Playback during a
-    // short post-navigation window as proof that the resolved destination
-    // actually contains autoplaying media (Reel/video). Photo/text/profile
-    // destinations never request Playback, so background audio is untouched.
     if (FBExternalDeepLinkWindowActive()) {
         gExternalDeepLinkPlaybackObserved = YES;
-        gLastConfirmedTap = now; // reuse the proven exclusive-playback path
-        gExternalDeepLinkIntentUntil = 0.0; // one-shot; avoid unrelated later media
-        FBLog(@"EXTERNAL DEEPLINK playback observed -> ALLOW exclusive playback");
+        gLastConfirmedTap = now;
+        gExternalDeepLinkIntentUntil = 0.0;
         return NO;
     }
 
@@ -137,42 +105,6 @@ static NSString *FBViewChain(UIView *view) {
     return [parts componentsJoinedByString:@" <- "];
 }
 
-static NSString *FBSafeAccessibilityText(UIView *view) {
-    if (!view) return @"(null)";
-    NSString *identifier = view.accessibilityIdentifier ?: @"";
-    NSString *label = view.accessibilityLabel ?: @"";
-    NSString *value = [view.accessibilityValue isKindOfClass:[NSString class]] ? (NSString *)view.accessibilityValue : @"";
-    return [NSString stringWithFormat:@"id='%@' label='%@' value='%@'", identifier, label, value];
-}
-
-static NSString *FBTabProbeDescription(UIView *view, UITouch *touch) {
-    if (!view) return @"target=(null)";
-
-    NSMutableArray<NSString *> *parts = [NSMutableArray array];
-    UIView *cursor = view;
-    UIView *tabBar = nil;
-
-    for (NSUInteger i = 0; cursor && i < 8; i++) {
-        NSString *name = NSStringFromClass([cursor class]);
-        CGRect f = cursor.frame;
-        NSString *a11y = FBSafeAccessibilityText(cursor);
-        [parts addObject:[NSString stringWithFormat:@"%@ frame=(%.1f,%.1f,%.1f,%.1f) %@",
-                          name, f.origin.x, f.origin.y, f.size.width, f.size.height, a11y]];
-        if ([name isEqualToString:@"FBTabBar"]) tabBar = cursor;
-        cursor = cursor.superview;
-    }
-
-    CGPoint pWindow = [touch locationInView:nil];
-    NSString *tabPoint = @"(n/a)";
-    if (tabBar) {
-        CGPoint pTab = [touch locationInView:tabBar];
-        tabPoint = [NSString stringWithFormat:@"(%.1f,%.1f)", pTab.x, pTab.y];
-    }
-
-    return [NSString stringWithFormat:@"windowPoint=(%.1f,%.1f) tabPoint=%@ responders=%@",
-            pWindow.x, pWindow.y, tabPoint, [parts componentsJoinedByString:@" || "]];
-}
-
 static BOOL FBIsMenuNavigationTap(UIView *view) {
     UIView *cursor = view;
     for (NSUInteger i = 0; cursor && i < 12; i++) {
@@ -186,27 +118,17 @@ static BOOL FBIsMenuNavigationTap(UIView *view) {
     return NO;
 }
 
-static BOOL FBIsInNavigationBar(UIView *view) {
-    UIView *cursor = view;
-    for (NSUInteger i = 0; cursor && i < 12; i++) {
-        NSString *name = NSStringFromClass([cursor class]);
-        if ([name isEqualToString:@"FBNavigationBar"] ||
-            [name isEqualToString:@"FBAnimatedNavigationBar"] ||
-            [name isEqualToString:@"UINavigationBar"]) {
-            return YES;
-        }
-        cursor = cursor.superview;
-    }
-    return NO;
-}
-
 static BOOL FBIsReelsBottomTab(UIView *view) {
     UIView *cursor = view;
     for (NSUInteger i = 0; cursor && i < 8; i++) {
         NSString *name = NSStringFromClass([cursor class]);
-        if ([name isEqualToString:@"FBTabBarItemDefaultView"]) {
+        if ([name isEqualToString:@"FBTabBarItemDefaultView"] ||
+            [name isEqualToString:@"FBFloatingTabBar.FBFloatingTabBarItemView"]) {
             NSString *identifier = cursor.accessibilityIdentifier;
-            return [identifier isEqualToString:@"tab-bar-item-2392950137"];
+            NSString *label = cursor.accessibilityLabel ?: @"";
+            if ([identifier isEqualToString:@"tab-bar-item-2392950137"]) return YES;
+            if ([label rangeOfString:@"reel" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                [label rangeOfString:@"video" options:NSCaseInsensitiveSearch].location != NSNotFound) return YES;
         }
         cursor = cursor.superview;
     }
@@ -218,6 +140,8 @@ static BOOL FBIsBottomTabTap(UIView *view) {
     for (NSUInteger i = 0; cursor && i < 8; i++) {
         NSString *name = NSStringFromClass([cursor class]);
         if ([name isEqualToString:@"FBTabBarItemDefaultView"] ||
+            [name isEqualToString:@"FBFloatingTabBar.FBFloatingTabBarItemView"] ||
+            [name isEqualToString:@"FBFloatingTabBar"] ||
             [name isEqualToString:@"FBTabBar"]) {
             return YES;
         }
@@ -274,7 +198,6 @@ static void FBFinishTouch(UITouch *touch) {
                       targetView ? NSStringFromClass([targetView class]) : @"(null)",
                       FBViewChain(targetView));
             }
-            (void)FBTabProbeDescription(targetView, touch);
         } else if (FBIsMenuNavigationTap(targetView)) {
             gLastConfirmedTap = 0.0;
             FBLog(@"MENU TAP ignored duration=%.3f distance=%.1f target=%@ chain=%@",
@@ -282,7 +205,6 @@ static void FBFinishTouch(UITouch *touch) {
                   sqrt(distanceSquared),
                   targetView ? NSStringFromClass([targetView class]) : @"(null)",
                   FBViewChain(targetView));
-            (void)FBTabProbeDescription(targetView, touch);
         } else {
             gLastConfirmedTap = NSProcessInfo.processInfo.systemUptime;
             FBLog(@"TAP confirmed duration=%.3f distance=%.1f target=%@ chain=%@",
@@ -291,7 +213,6 @@ static void FBFinishTouch(UITouch *touch) {
                   targetView ? NSStringFromClass([targetView class]) : @"(null)",
                   FBViewChain(targetView));
             if (FBIsInNavigationBar(targetView)) {
-                (void)FBTabProbeDescription(targetView, touch);
             }
         }
     } else {
@@ -351,12 +272,6 @@ static BOOL hCategoryOptions(AVAudioSession *session, SEL cmd,
 
     if (FBIsPlayback(category)) {
         BOOL recentTap = FBRecentConfirmedTap();
-        gAllowedExclusivePlayback = YES;
-        gLastExclusivePlayback = NSProcessInfo.processInfo.systemUptime;
-        gMediaControllerAppearedAfterPlayback = NO;
-        gAllowedExclusivePlayback = YES;
-        gLastExclusivePlayback = NSProcessInfo.processInfo.systemUptime;
-        gMediaControllerAppearedAfterPlayback = NO;
         gAllowedExclusivePlayback = YES;
         gLastExclusivePlayback = NSProcessInfo.processInfo.systemUptime;
         gMediaControllerAppearedAfterPlayback = NO;
@@ -471,12 +386,16 @@ static void FBRestoreAmbientAndRelease(NSString *reason) {
 
 static void FBWillResignActive(NSNotification *note) {
     (void)note;
+    gExclusiveBeforeResignActive = gAllowedExclusivePlayback;
+    gEnteredBackgroundAfterResign = NO;
     FBLog(@"APP willResignActive exclusiveState=%@",
           gAllowedExclusivePlayback ? @"YES" : @"NO");
 }
 
 static void FBDidEnterBackground(NSNotification *note) {
     (void)note;
+    gEnteredBackgroundAfterResign = YES;
+    gResumeExclusiveIntentUntil = 0.0;
     FBLog(@"APP didEnterBackground exclusiveState=%@",
           gAllowedExclusivePlayback ? @"YES" : @"NO");
     FBRestoreAmbientAndRelease(@"didEnterBackground");
@@ -484,8 +403,17 @@ static void FBDidEnterBackground(NSNotification *note) {
 
 static void FBDidBecomeActive(NSNotification *note) {
     (void)note;
-    FBLog(@"APP didBecomeActive exclusiveState=%@",
-          gAllowedExclusivePlayback ? @"YES" : @"NO");
+    NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
+    BOOL reclaim = gExclusiveBeforeResignActive && !gEnteredBackgroundAfterResign;
+    if (reclaim) {
+        gResumeExclusiveIntentUntil = now + 2.0;
+    }
+    FBLog(@"APP didBecomeActive exclusiveState=%@ reclaimExclusive=%@ window=%.1f",
+          gAllowedExclusivePlayback ? @"YES" : @"NO",
+          reclaim ? @"YES" : @"NO",
+          reclaim ? 2.0 : 0.0);
+    gExclusiveBeforeResignActive = NO;
+    gEnteredBackgroundAfterResign = NO;
 }
 
 
@@ -582,6 +510,39 @@ static void hVCViewDidDisappear(UIViewController *vc, SEL cmd, BOOL animated) {
           name, parent, presenting, navTop);
 }
 
+static void hStoryBucketViewDidDisappear(UIViewController *vc, SEL cmd, BOOL animated) {
+    oStoryBucketViewDidDisappear(vc, cmd, animated);
+
+    if (!gAllowedExclusivePlayback) return;
+
+    // Switching between Story items only replaces media/container children.
+    // The bucket viewer itself disappearing means the Story surface is closing.
+    // Defer one run-loop turn so UIKit has finished the dismissal before releasing
+    // Facebook's exclusive audio session and notifying background audio to resume.
+    __weak UIViewController *weakVC = vc;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIViewController *strongVC = weakVC;
+        if (!strongVC || !gAllowedExclusivePlayback) return;
+
+        BOOL stillVisible = strongVC.viewIfLoaded.window != nil;
+        BOOL beingDismissed = strongVC.isBeingDismissed ||
+                              strongVC.navigationController.isBeingDismissed;
+        BOOL detached = strongVC.presentingViewController == nil &&
+                        strongVC.parentViewController == nil;
+
+        FBLog(@"STORY BUCKET DISAPPEAR visible=%@ beingDismissed=%@ detached=%@",
+              stillVisible ? @"YES" : @"NO",
+              beingDismissed ? @"YES" : @"NO",
+              detached ? @"YES" : @"NO");
+
+        // A bucket may become detached while Facebook swaps Story internals.
+        // Only an actual UIKit dismissal is authoritative enough to release audio.
+        if (!stillVisible && beingDismissed) {
+            FBReleaseOnNewsFeedReturn(@"FBSnacksBucketViewController dismissed");
+        }
+    });
+}
+
 static void FBHook(Class cls, SEL sel, IMP replacement, IMP *original) {
     Method method = class_getInstanceMethod(cls, sel);
     if (!method) return;
@@ -593,10 +554,6 @@ static void InitFBAudioFix(void) {
     @autoreleasepool {
         gTouchStarts = [NSMapTable weakToStrongObjectsMapTable];
         gTouchStartTimes = [NSMapTable weakToStrongObjectsMapTable];
-
-        NSString *path = FBLogPath();
-        if (path) [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
-        FBLog(@"INIT FBAudioFix v0.3.14 fork-test=1.0.1-2");
 
         NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
         [nc addObserverForName:FBPExternalDeepLinkNotification
@@ -636,6 +593,13 @@ static void InitFBAudioFix(void) {
                    (IMP)hVCViewDidAppear, (IMP *)&oVCViewDidAppear);
             FBHook(vcClass, @selector(viewDidDisappear:),
                    (IMP)hVCViewDidDisappear, (IMP *)&oVCViewDidDisappear);
+        }
+
+        Class storyBucketClass = objc_getClass("FBSnacksBucketViewController");
+        if (storyBucketClass) {
+            FBHook(storyBucketClass, @selector(viewDidDisappear:),
+                   (IMP)hStoryBucketViewDidDisappear,
+                   (IMP *)&oStoryBucketViewDidDisappear);
         }
 
         Class audioClass = objc_getClass("AVAudioSession");
