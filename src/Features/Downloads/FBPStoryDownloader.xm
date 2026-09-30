@@ -400,17 +400,23 @@ static void FBPStoryCaptureCurrentVideo(id controller, id mediaView) {
 }
 
 static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
-    Class photoClass = objc_getClass("FBSnacksPhotoView");
-    if (!photoClass || !mediaView || ![mediaView isKindOfClass:photoClass]) return;
-
-    // V0.2 proved _getMediaUrl returns the real image URL for photo Stories.
+    // Photo/composed Stories do not always arrive as FBSnacksPhotoView. In
+    // particular mood/template Stories can use a different media-view class.
+    // _getMediaUrl was already verified to expose the real image URL for normal
+    // photo Stories, so probe it for every non-video Story instead of rejecting
+    // unknown view classes before Facebook has a chance to tell us the media URL.
+    NSString *mediaClass = mediaView ? NSStringFromClass([mediaView class]) : @"(nil)";
+    NSString *superClass = (mediaView && [mediaView superclass])
+        ? NSStringFromClass([mediaView superclass]) : @"(nil)";
     id raw = FBPStoryObjectGetter(controller, @"_getMediaUrl");
+    FBPStoryLog(@"photo probe mediaClass=%@ super=%@ mediaURL=%@",
+                mediaClass, superClass, raw);
     NSURL *url = nil;
     if ([raw isKindOfClass:NSURL.class]) url = raw;
     else if ([raw isKindOfClass:NSString.class]) url = [NSURL URLWithString:raw];
 
     if (!url || ![url.scheme.lowercaseString hasPrefix:@"http"]) {
-        FBPStoryLog(@"photo Story has no direct HTTP media URL: %@", raw);
+        FBPStoryLog(@"photo probe rejected: no direct HTTP media URL");
         return;
     }
 
@@ -421,7 +427,7 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
     gStoryVideoID = [NSString stringWithFormat:@"photo-%lu",
                      (unsigned long)url.absoluteString.hash];
 
-    FBPStoryLog(@"captured PHOTO url=%@", url.absoluteString);
+    FBPStoryLog(@"captured PHOTO mediaClass=%@ url=%@", mediaClass, url.absoluteString);
 
     dispatch_async(dispatch_get_main_queue(), ^{
         FBPStoryInstallOrUpdateButton((UIViewController *)controller);
