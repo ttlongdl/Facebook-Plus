@@ -326,9 +326,49 @@ didCompleteWithError:(NSError *)error {
 
 static NSMutableSet *gStoryDownloadDelegates = nil;
 
+static UIImage *FBPStoryRenderMediaView(UIView *view) {
+    if (!view || CGRectIsEmpty(view.bounds)) return nil;
+    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+    format.scale = UIScreen.mainScreen.scale;
+    format.opaque = YES;
+    UIGraphicsImageRenderer *renderer =
+        [[UIGraphicsImageRenderer alloc] initWithBounds:view.bounds format:format];
+    return [renderer imageWithActions:^(__unused UIGraphicsImageRendererContext *ctx) {
+        BOOL drew = [view drawViewHierarchyInRect:view.bounds afterScreenUpdates:NO];
+        if (!drew) [view.layer renderInContext:ctx.CGContext];
+    }];
+}
+
+static void FBPStorySaveRenderedImage(UIImage *image) {
+    if (!image) return;
+    gStoryDownloading = YES;
+    FBPStorySetButtonState(NO);
+    FBPStorySetProgress(0.5, YES);
+    FBPStoryLog(@"rendered save start mediaID=%@ points=%.0fx%.0f scale=%.1f pixels=%.0fx%.0f",
+                gStoryVideoID, image.size.width, image.size.height, image.scale,
+                image.size.width * image.scale, image.size.height * image.scale);
+    [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+        [PHAssetChangeRequest creationRequestForAssetFromImage:image];
+    } completionHandler:^(BOOL success, NSError *error) {
+        FBPStoryLog(@"Photos rendered save success=%d error=%@", success, error);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            gStoryDownloading = NO;
+            FBPStorySetButtonState(YES);
+            FBPStorySetProgress(0, NO);
+            FBPStoryFlashSymbol(success ? @"checkmark" : @"xmark");
+            if (success) FBPStoryShowSavedPopup();
+        });
+    }];
+}
+
 static void FBPStoryStartDownload(void) {
     if (!FBPStoryDownloaderEnabled()) { FBPStoryHideButton(); return; }
     if (gStoryDownloading || !gStoryVideoURL) return;
+
+    if (!gStoryMediaIsVideo && gStoryRenderedImage) {
+        FBPStorySaveRenderedImage(gStoryRenderedImage);
+        return;
+    }
 
     NSURL *url = [gStoryVideoURL copy];
     if (![url.scheme.lowercaseString hasPrefix:@"http"]) return;
@@ -507,12 +547,27 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
         }
         FBPStoryLog(@"photo fallback resolved FBWebPhotoView response URL=%@", url.absoluteString);
         FBPStoryLogPhotoSourceCandidates(mediaView);
+        if ([mediaView isKindOfClass:UIView.class]) {
+            gStoryRenderedImage = FBPStoryRenderMediaView((UIView *)mediaView);
+            if (gStoryRenderedImage) {
+                FBPStoryLog(@"photo fallback rendered mediaView points=%.0fx%.0f scale=%.1f pixels=%.0fx%.0f",
+                            gStoryRenderedImage.size.width, gStoryRenderedImage.size.height,
+                            gStoryRenderedImage.scale,
+                            gStoryRenderedImage.size.width * gStoryRenderedImage.scale,
+                            gStoryRenderedImage.size.height * gStoryRenderedImage.scale);
+            }
+        }
     }
 
     gStoryController = controller;
     gStoryMediaView = mediaView;
     gStoryMediaIsVideo = NO;
-    gStoryRenderedImage = nil;
+    // Keep the rendered fallback for composed/other_media_type Stories.
+    // Direct photo URLs still clear it so normal Stories retain original CDN downloads.
+    if ([raw isKindOfClass:NSURL.class] || ([raw isKindOfClass:NSString.class] &&
+        [[NSURL URLWithString:raw].scheme.lowercaseString hasPrefix:@"http"])) {
+        gStoryRenderedImage = nil;
+    }
     gStoryVideoURL = [url copy];
     gStoryVideoID = [NSString stringWithFormat:@"photo-%lu",
                      (unsigned long)url.absoluteString.hash];
