@@ -214,6 +214,14 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                             FBPStoryLogObjectSourceIvars(innerValue, probeLabel);
 
                             if ([innerClassName isEqualToString:@"FBMemPhoto"]) {
+                                id snacksMedia = FBPStoryObjectGetter(innerValue, @"asFBSnacksMedia");
+                                if (snacksMedia) {
+                                    FBPStoryLog(@"SOURCE-SNACKS-MEDIA class=%@ value=%@",
+                                                NSStringFromClass([snacksMedia class]), [snacksMedia description]);
+                                    FBPStoryLogObjectSourceGetters(snacksMedia, @"FBMemPhoto.asFBSnacksMedia");
+                                    FBPStoryLogObjectSourceIvars(snacksMedia, @"FBMemPhoto.asFBSnacksMedia");
+                                }
+
                                 id image2048 = FBPStoryObjectGetter(innerValue, @"image2048");
                                 if (image2048) {
                                     NSString *imageLabel = @"FBMemPhoto.image2048";
