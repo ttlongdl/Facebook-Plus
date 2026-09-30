@@ -397,6 +397,66 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                                 }
                             }
 
+                            if ([innerClassName isEqualToString:@"MOSCachedImage"]) {
+                                FBPStoryLog(@"SOURCE-CACHE begin ptr=%p class=%@", innerValue, innerClassName);
+                                id localURL = FBPStoryObjectGetter(innerValue, @"localFileURL");
+                                if ([localURL isKindOfClass:NSURL.class]) {
+                                    NSString *cachePath = [(NSURL *)localURL path];
+                                    NSDictionary *attrs = cachePath.length
+                                        ? [[NSFileManager defaultManager] attributesOfItemAtPath:cachePath error:nil] : nil;
+                                    NSNumber *fileSize = attrs[NSFileSize];
+                                    UIImage *cacheImage = cachePath.length ? [UIImage imageWithContentsOfFile:cachePath] : nil;
+                                    FBPStoryLog(@"SOURCE-CACHE-FILE url=%@ bytes=%@ imagePoints=%.0fx%.0f scale=%.2f pixels=%.0fx%.0f",
+                                                localURL, fileSize ?: @0,
+                                                cacheImage.size.width, cacheImage.size.height, cacheImage.scale,
+                                                cacheImage.size.width * cacheImage.scale,
+                                                cacheImage.size.height * cacheImage.scale);
+                                } else {
+                                    FBPStoryLog(@"SOURCE-CACHE-FILE unavailable value=%@", localURL);
+                                }
+
+                                for (Class cacheCls = [innerValue class]; cacheCls && cacheCls != NSObject.class;
+                                     cacheCls = class_getSuperclass(cacheCls)) {
+                                    unsigned int methodCount = 0;
+                                    Method *methods = class_copyMethodList(cacheCls, &methodCount);
+                                    for (unsigned int mi = 0; mi < methodCount && mi < 1200; mi++) {
+                                        NSString *name = NSStringFromSelector(method_getName(methods[mi]));
+                                        NSString *lower = name.lowercaseString;
+                                        if ([lower containsString:@"url"] || [lower containsString:@"source"] ||
+                                            [lower containsString:@"request"] || [lower containsString:@"image"] ||
+                                            [lower containsString:@"photo"] || [lower containsString:@"story"] ||
+                                            [lower containsString:@"media"] || [lower containsString:@"cache"] ||
+                                            [lower containsString:@"key"] || [lower containsString:@"size"] ||
+                                            [lower containsString:@"width"] || [lower containsString:@"height"] ||
+                                            [lower containsString:@"data"]) {
+                                            FBPStoryLog(@"SOURCE-CACHE-META class=%@ method=%@ types=%s",
+                                                        NSStringFromClass(cacheCls), name,
+                                                        method_getTypeEncoding(methods[mi]) ?: "");
+                                        }
+                                    }
+                                    free(methods);
+
+                                    unsigned int propCount = 0;
+                                    objc_property_t *props = class_copyPropertyList(cacheCls, &propCount);
+                                    for (unsigned int pi = 0; pi < propCount && pi < 600; pi++) {
+                                        NSString *name = [NSString stringWithUTF8String:property_getName(props[pi]) ?: ""];
+                                        NSString *lower = name.lowercaseString;
+                                        if ([lower containsString:@"url"] || [lower containsString:@"source"] ||
+                                            [lower containsString:@"request"] || [lower containsString:@"image"] ||
+                                            [lower containsString:@"photo"] || [lower containsString:@"story"] ||
+                                            [lower containsString:@"media"] || [lower containsString:@"cache"] ||
+                                            [lower containsString:@"key"] || [lower containsString:@"size"] ||
+                                            [lower containsString:@"width"] || [lower containsString:@"height"] ||
+                                            [lower containsString:@"data"]) {
+                                            FBPStoryLog(@"SOURCE-CACHE-META class=%@ property=%@ attrs=%s",
+                                                        NSStringFromClass(cacheCls), name,
+                                                        property_getAttributes(props[pi]) ?: "");
+                                        }
+                                    }
+                                    free(props);
+                                }
+                            }
+
                             if ([innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"]) {
                                 NSUInteger (*sendUInt)(id, SEL) = (NSUInteger (*)(id, SEL))objc_msgSend;
                                 NSInteger (*sendInt)(id, SEL) = (NSInteger (*)(id, SEL))objc_msgSend;
