@@ -342,6 +342,33 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                                     NSString *imageLabel = @"FBMemPhoto.image2048";
                                     FBPStoryLog(@"SOURCE-2048 class=%@ value=%@",
                                                 NSStringFromClass([image2048 class]), [image2048 description]);
+
+                                    id (*sendObject)(id, SEL) = (id (*)(id, SEL))objc_msgSend;
+                                    NSInteger (*sendInteger)(id, SEL) = (NSInteger (*)(id, SEL))objc_msgSend;
+                                    SEL uriSel = NSSelectorFromString(@"uri");
+                                    SEL widthSel = NSSelectorFromString(@"widthValue");
+                                    SEL heightSel = NSSelectorFromString(@"heightValue");
+                                    id uriValue = [image2048 respondsToSelector:uriSel] ? sendObject(image2048, uriSel) : nil;
+                                    NSInteger widthValue = [image2048 respondsToSelector:widthSel] ? sendInteger(image2048, widthSel) : -1;
+                                    NSInteger heightValue = [image2048 respondsToSelector:heightSel] ? sendInteger(image2048, heightSel) : -1;
+                                    FBPStoryLog(@"SOURCE-2048-DIRECT uriClass=%@ uri=%@ width=%lld height=%lld",
+                                                NSStringFromClass([uriValue class]), [uriValue description],
+                                                (long long)widthValue, (long long)heightValue);
+
+                                    id fullImage = FBPStoryObjectGetter(image2048, @"asFBStoriesFullImage");
+                                    if (fullImage) {
+                                        id fullURI = [fullImage respondsToSelector:uriSel] ? sendObject(fullImage, uriSel) : nil;
+                                        NSInteger fullWidth = [fullImage respondsToSelector:widthSel] ? sendInteger(fullImage, widthSel) : -1;
+                                        NSInteger fullHeight = [fullImage respondsToSelector:heightSel] ? sendInteger(fullImage, heightSel) : -1;
+                                        FBPStoryLog(@"SOURCE-STORIES-FULL ptr=%p class=%@ sameAs2048=%@ uriClass=%@ uri=%@ width=%lld height=%lld value=%@",
+                                                    fullImage, NSStringFromClass([fullImage class]),
+                                                    fullImage == image2048 ? @"YES" : @"NO",
+                                                    NSStringFromClass([fullURI class]), [fullURI description],
+                                                    (long long)fullWidth, (long long)fullHeight,
+                                                    [fullImage description]);
+                                    } else {
+                                        FBPStoryLog(@"SOURCE-STORIES-FULL unavailable");
+                                    }
                                     FBPStoryLogObjectSourceGetters(image2048, imageLabel);
                                     FBPStoryLogObjectSourceIvars(image2048, imageLabel);
 
