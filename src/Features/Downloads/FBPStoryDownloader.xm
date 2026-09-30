@@ -47,8 +47,7 @@ static void FBPStoryLog(NSString *format, ...) {
     NSString *msg = [[NSString alloc] initWithFormat:format arguments:args];
     va_end(args);
 
-    NSString *line = [NSString stringWithFormat:@"[%@] %@
-", [NSDate date], msg];
+    NSString *line = [NSString stringWithFormat:@"[%@] %@\\n", [NSDate date], msg];
     NSData *data = [line dataUsingEncoding:NSUTF8StringEncoding];
     NSString *path = FBPStoryLogPath();
 
