@@ -84,6 +84,8 @@ static id FBPStoryObjectGetter(id obj, NSString *name) {
     }
 }
 
+static void FBPStoryDiscoverPhotoPipelineClasses(void);
+
 static NSURL *FBPStoryResponseImageURLFromMediaView(id mediaView) {
     if (![mediaView isKindOfClass:UIView.class]) return nil;
     NSMutableArray *queue = [NSMutableArray arrayWithObject:(UIView *)mediaView];
