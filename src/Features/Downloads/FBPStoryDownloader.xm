@@ -203,6 +203,34 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                         FBPStoryLog(@"SOURCE-INNER-IVAR ivar=%@ class=%@ value=%@",
                                     innerName, NSStringFromClass([innerValue class]), innerDesc);
                         innerEmitted++;
+
+                        NSString *innerClassName = NSStringFromClass([innerValue class]);
+                        if ([innerClassName isEqualToString:@"FBMemPhoto"] ||
+                            [innerClassName isEqualToString:@"MOSCachedImage"] ||
+                            [innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"]) {
+                            NSString *probeLabel = [NSString stringWithFormat:@"inner.%@.%@", innerName, innerClassName];
+                            FBPStoryLogObjectSourceGetters(innerValue, probeLabel);
+                            FBPStoryLogObjectSourceIvars(innerValue, probeLabel);
+
+                            if ([innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"]) {
+                                id nodes = FBPStoryObjectGetter(innerValue, @"downloadNodes");
+                                if ([nodes conformsToProtocol:@protocol(NSFastEnumeration)]) {
+                                    NSUInteger nodeIndex = 0;
+                                    for (id node in nodes) {
+                                        NSString *nodeLabel = [NSString stringWithFormat:@"downloadNode[%lu]", (unsigned long)nodeIndex++];
+                                        NSString *nodeDesc = [node description] ?: @"";
+                                        if (nodeDesc.length > 1200) nodeDesc = [[nodeDesc substringToIndex:1200] stringByAppendingString:@"…"];
+                                        FBPStoryLog(@"SOURCE-NODE %@ class=%@ value=%@", nodeLabel,
+                                                    NSStringFromClass([node class]), nodeDesc);
+                                        FBPStoryLogObjectSourceGetters(node, nodeLabel);
+                                        FBPStoryLogObjectSourceIvars(node, nodeLabel);
+                                    }
+                                } else {
+                                    FBPStoryLog(@"SOURCE-NODE downloadNodes unavailable class=%@ value=%@",
+                                                NSStringFromClass([nodes class]), [nodes description]);
+                                }
+                            }
+                        }
                     }
                     free(innerIvars);
                 }
