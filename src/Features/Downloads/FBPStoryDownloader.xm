@@ -27,6 +27,8 @@ static id (*gOrigSpecifierForPhoto)(id, SEL, id, unsigned long long, unsigned lo
 static id (*gOrigWebPhotoInitDownloaderFlags)(id, SEL, id, unsigned long long, id) = NULL;
 static id (*gOrigWebPhotoInitSessionFlags)(id, SEL, id, unsigned long long) = NULL;
 static void (*gOrigWebPhotoSetImageFlags)(id, SEL, unsigned long long) = NULL;
+static void (*gOrigWebPhotoSetPhoto)(id, SEL, id) = NULL;
+static void (*gOrigWebPhotoDownloadIfNecessary)(id, SEL) = NULL;
 
 static __weak UIViewController *gStoryController = nil;
 static __weak UIView *gStoryMediaView = nil;
@@ -1045,6 +1047,42 @@ static void FBPStoryWebPhotoSetImageFlagsHook(id self, SEL _cmd,
                 self, beforeID, before, imageFlags, after);
 }
 
+static unsigned long long FBPStoryWebPhotoCurrentFlags(id view) {
+    SEL getter = NSSelectorFromString(@"imageFlags");
+    if (![view respondsToSelector:getter]) return 0;
+    unsigned long long (*sendQ)(id, SEL) =
+        (unsigned long long (*)(id, SEL))objc_msgSend;
+    return sendQ(view, getter);
+}
+
+static NSString *FBPStoryShortCallStack(void) {
+    NSArray<NSString *> *symbols = [NSThread callStackSymbols];
+    NSUInteger count = MIN((NSUInteger)10, symbols.count);
+    if (count <= 2) return @"";
+    return [[symbols subarrayWithRange:NSMakeRange(2, count - 2)]
+            componentsJoinedByString:@" || "];
+}
+
+static void FBPStoryWebPhotoSetPhotoHook(id self, SEL _cmd, id photo) {
+    id modelID = FBPStoryObjectGetter(photo, @"modelIdentifier");
+    unsigned long long flags = FBPStoryWebPhotoCurrentFlags(self);
+    FBPStoryLog(@"SOURCE-UPSTREAM setPhoto ENTER view=%p photoClass=%@ modelID=%@ flags=%llu stack=%@",
+                self, NSStringFromClass([photo class]), modelID, flags,
+                FBPStoryShortCallStack());
+    if (gOrigWebPhotoSetPhoto) gOrigWebPhotoSetPhoto(self, _cmd, photo);
+    FBPStoryLog(@"SOURCE-UPSTREAM setPhoto EXIT view=%p modelID=%@ flags=%llu",
+                self, FBPStoryWebPhotoModelID(self),
+                FBPStoryWebPhotoCurrentFlags(self));
+}
+
+static void FBPStoryWebPhotoDownloadIfNecessaryHook(id self, SEL _cmd) {
+    FBPStoryLog(@"SOURCE-UPSTREAM downloadIfNecessary view=%p modelID=%@ flags=%llu stack=%@",
+                self, FBPStoryWebPhotoModelID(self),
+                FBPStoryWebPhotoCurrentFlags(self), FBPStoryShortCallStack());
+    if (gOrigWebPhotoDownloadIfNecessary)
+        gOrigWebPhotoDownloadIfNecessary(self, _cmd);
+}
+
 static unsigned long long FBPStoryOptimizedImageFlagsHook(id self, SEL _cmd,
                                                                unsigned long long imageFlags,
                                                                id photo,
@@ -1120,9 +1158,13 @@ static void FBPStoryInstallPhotoPipelineHooks(void) {
     SEL initDownloaderSel = NSSelectorFromString(@"initWithDownloaderFactory:imageFlags:userSession:");
     SEL initSessionSel = NSSelectorFromString(@"initWithSession:imageFlags:");
     SEL setFlagsSel = NSSelectorFromString(@"setImageFlags:");
+    SEL setPhotoSel = NSSelectorFromString(@"setPhoto:");
+    SEL downloadIfNecessarySel = NSSelectorFromString(@"_downloadPhotoIfNecessary");
     Method initDownloaderMethod = class_getInstanceMethod(webPhotoClass, initDownloaderSel);
     Method initSessionMethod = class_getInstanceMethod(webPhotoClass, initSessionSel);
     Method setFlagsMethod = class_getInstanceMethod(webPhotoClass, setFlagsSel);
+    Method setPhotoMethod = class_getInstanceMethod(webPhotoClass, setPhotoSel);
+    Method downloadIfNecessaryMethod = class_getInstanceMethod(webPhotoClass, downloadIfNecessarySel);
     FBPStoryLog(@"SOURCE-FLAG-HOOK types initDownloader=%s initSession=%s setFlags=%s",
                 initDownloaderMethod ? method_getTypeEncoding(initDownloaderMethod) : "(missing)",
                 initSessionMethod ? method_getTypeEncoding(initSessionMethod) : "(missing)",
@@ -1139,6 +1181,18 @@ static void FBPStoryInstallPhotoPipelineHooks(void) {
         MSHookMessageEx(webPhotoClass, setFlagsSel,
                         (IMP)FBPStoryWebPhotoSetImageFlagsHook,
                         (IMP *)&gOrigWebPhotoSetImageFlags);
+    if (setPhotoMethod)
+        MSHookMessageEx(webPhotoClass, setPhotoSel,
+                        (IMP)FBPStoryWebPhotoSetPhotoHook,
+                        (IMP *)&gOrigWebPhotoSetPhoto);
+    if (downloadIfNecessaryMethod)
+        MSHookMessageEx(webPhotoClass, downloadIfNecessarySel,
+                        (IMP)FBPStoryWebPhotoDownloadIfNecessaryHook,
+                        (IMP *)&gOrigWebPhotoDownloadIfNecessary);
+    FBPStoryLog(@"SOURCE-UPSTREAM-HOOK setPhoto=%d downloadIfNecessary=%d types=%s/%s",
+                setPhotoMethod != NULL, downloadIfNecessaryMethod != NULL,
+                setPhotoMethod ? method_getTypeEncoding(setPhotoMethod) : "(missing)",
+                downloadIfNecessaryMethod ? method_getTypeEncoding(downloadIfNecessaryMethod) : "(missing)");
 
     gStoryPhotoPipelineHooksInstalled = YES;
     FBPStoryLog(@"SOURCE-CALL-HOOK installed");
