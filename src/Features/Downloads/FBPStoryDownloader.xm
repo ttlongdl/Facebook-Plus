@@ -20,6 +20,10 @@
 
 static void (*gOrigStoryDidStartPlaying)(id, SEL, id, id) = NULL;
 static BOOL gStoryHookInstalled = NO;
+static BOOL gStoryPhotoPipelineHooksInstalled = NO;
+
+static unsigned long long (*gOrigOptimizedImageFlags)(id, SEL, unsigned long long, id, CGSize) = NULL;
+static id (*gOrigSpecifierForPhoto)(id, SEL, id, unsigned long long, unsigned long long, unsigned long long, BOOL, BOOL, id, id, id, id) = NULL;
 
 static __weak UIViewController *gStoryController = nil;
 static __weak UIView *gStoryMediaView = nil;
@@ -991,6 +995,81 @@ static void FBPStoryCaptureCurrentVideo(id controller, id mediaView) {
     });
 }
 
+static unsigned long long FBPStoryOptimizedImageFlagsHook(id self, SEL _cmd,
+                                                               unsigned long long imageFlags,
+                                                               id photo,
+                                                               CGSize size) {
+    unsigned long long result = gOrigOptimizedImageFlags
+        ? gOrigOptimizedImageFlags(self, _cmd, imageFlags, photo, size)
+        : imageFlags;
+    id modelID = FBPStoryObjectGetter(photo, @"modelIdentifier");
+    FBPStoryLog(@"SOURCE-CALL optimizedImageFlags photoClass=%@ modelID=%@ input=%llu size=%.0fx%.0f output=%llu",
+                NSStringFromClass([photo class]), modelID,
+                imageFlags, size.width, size.height, result);
+    return result;
+}
+
+static id FBPStorySpecifierForPhotoHook(id self, SEL _cmd,
+                                        id photo,
+                                        unsigned long long imageFlags,
+                                        unsigned long long currentDisplayedImageFlag,
+                                        unsigned long long downloadMode,
+                                        BOOL enableURLSearch,
+                                        BOOL disableFetchFirst,
+                                        id imagePerfLoggers,
+                                        id streamingConfigurator,
+                                        id downloaderSessionFactory,
+                                        id userSession) {
+    id result = gOrigSpecifierForPhoto
+        ? gOrigSpecifierForPhoto(self, _cmd, photo, imageFlags, currentDisplayedImageFlag,
+                                 downloadMode, enableURLSearch, disableFetchFirst,
+                                 imagePerfLoggers, streamingConfigurator,
+                                 downloaderSessionFactory, userSession)
+        : nil;
+    id modelID = FBPStoryObjectGetter(photo, @"modelIdentifier");
+    id targetFlag = FBPStoryObjectGetter(result, @"targetImageFlag");
+    id urls = FBPStoryObjectGetter(result, @"allInfoURLsSortedByDescImageFlag");
+    FBPStoryLog(@"SOURCE-CALL specifierForPhoto photoClass=%@ modelID=%@ imageFlags=%llu current=%llu mode=%llu urlSearch=%d disableFetchFirst=%d resultClass=%@ target=%@ urls=%@",
+                NSStringFromClass([photo class]), modelID,
+                imageFlags, currentDisplayedImageFlag, downloadMode,
+                enableURLSearch, disableFetchFirst,
+                NSStringFromClass([result class]), targetFlag, urls);
+    return result;
+}
+
+static void FBPStoryInstallPhotoPipelineHooks(void) {
+    if (gStoryPhotoPipelineHooksInstalled) return;
+
+    Class webPhotoClass = objc_getClass("FBWebPhotoView");
+    Class helperClass = objc_getClass("FBWebPhotoViewHelper");
+    if (!webPhotoClass || !helperClass) return;
+
+    SEL optimizedSel = NSSelectorFromString(@"optimizedImageFlagsForImageFlags:photo:size:");
+    SEL specifierSel = NSSelectorFromString(@"specifierForPhoto:imageFlags:currentDisplayedImageFlag:downloadMode:enableURLSearch:disableFetchFirst:imagePerfLoggers:streamingConfigurator:downloaderSessionFactory:userSession:");
+
+    Method optimizedMethod = class_getClassMethod(webPhotoClass, optimizedSel);
+    Method specifierMethod = class_getClassMethod(helperClass, specifierSel);
+    if (!optimizedMethod || !specifierMethod) {
+        FBPStoryLog(@"SOURCE-CALL-HOOK missing optimized=%d specifier=%d",
+                    optimizedMethod != NULL, specifierMethod != NULL);
+        return;
+    }
+
+    const char *optimizedTypes = method_getTypeEncoding(optimizedMethod);
+    const char *specifierTypes = method_getTypeEncoding(specifierMethod);
+    FBPStoryLog(@"SOURCE-CALL-HOOK types optimized=%s specifier=%s",
+                optimizedTypes ?: "", specifierTypes ?: "");
+
+    MSHookMessageEx(object_getClass(webPhotoClass), optimizedSel,
+                    (IMP)FBPStoryOptimizedImageFlagsHook,
+                    (IMP *)&gOrigOptimizedImageFlags);
+    MSHookMessageEx(object_getClass(helperClass), specifierSel,
+                    (IMP)FBPStorySpecifierForPhotoHook,
+                    (IMP *)&gOrigSpecifierForPhoto);
+    gStoryPhotoPipelineHooksInstalled = YES;
+    FBPStoryLog(@"SOURCE-CALL-HOOK installed");
+}
+
 static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
     // Photo/composed Stories do not always arrive as FBSnacksPhotoView. In
     // particular mood/template Stories can use a different media-view class.
@@ -1098,6 +1177,7 @@ __attribute__((constructor))
 static void FBPStoryDownloaderCtor(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         FBPInstallStoryDownloader();
+        FBPStoryInstallPhotoPipelineHooks();
 
         if (!gStoryHookInstalled) {
             __block NSInteger attempts = 0;
