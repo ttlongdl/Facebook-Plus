@@ -450,14 +450,10 @@ static void FBPStoryRetryVideoCapture(id controller, id mediaView, NSUInteger at
         return;
 
     if (FBPStoryCaptureCurrentVideo(controller, mediaView)) {
-        FBPStoryLog(@"VIDEO-113 late capture success mediaClass=%@ attempt=%llu",
-                    NSStringFromClass([mediaView class]), (unsigned long long)attempt);
         return;
     }
 
     if (attempt >= 12) {
-        FBPStoryLog(@"VIDEO-113 late capture exhausted mediaClass=%@",
-                    NSStringFromClass([mediaView class]));
         return;
     }
 
@@ -483,7 +479,6 @@ static void FBPStoryCaptureVideoWithRetry(id controller, id mediaView) {
     // Retry briefly while the same controller is still visible; stop as soon
     // as the URL is available. 12 x 250 ms covers the observed late-player
     // race without retaining a self-referencing block.
-    FBPStoryLog(@"VIDEO-113 late capture scheduled mediaClass=%@", mediaClass);
 
     __weak UIViewController *weakController = (UIViewController *)controller;
     __weak id weakMediaView = mediaView;
@@ -497,17 +492,10 @@ static void FBPStoryCaptureVideoWithRetry(id controller, id mediaView) {
 }
 
 static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
-    // Photo/composed Stories do not always arrive as FBSnacksPhotoView. In
-    // particular mood/template Stories can use a different media-view class.
-    // _getMediaUrl was already verified to expose the real image URL for normal
-    // photo Stories, so probe it for every non-video Story instead of rejecting
-    // unknown view classes before Facebook has a chance to tell us the media URL.
-    NSString *mediaClass = mediaView ? NSStringFromClass([mediaView class]) : @"(nil)";
-    NSString *superClass = (mediaView && [mediaView superclass])
-        ? NSStringFromClass([mediaView superclass]) : @"(nil)";
+    // Photo/composed Stories do not always arrive as FBSnacksPhotoView.
+    // Ask the current Story controller for its media URL before using the
+    // verified FBWebPhotoView response URL fallback.
     id raw = FBPStoryObjectGetter(controller, @"_getMediaUrl");
-    FBPStoryLog(@"photo probe mediaClass=%@ super=%@ mediaURL=%@",
-                mediaClass, superClass, raw);
     NSURL *url = nil;
     if ([raw isKindOfClass:NSURL.class]) url = raw;
     else if ([raw isKindOfClass:NSString.class]) url = [NSURL URLWithString:raw];
@@ -515,18 +503,11 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
     if (!url || ![url.scheme.lowercaseString hasPrefix:@"http"]) {
         url = FBPStoryResponseImageURLFromMediaView(mediaView);
         if (!url) {
-            FBPStoryLog(@"photo fallback rejected: no direct URL and no FBWebPhotoView response URL");
             return;
         }
-        FBPStoryLog(@"photo fallback resolved FBWebPhotoView response URL=%@", url.absoluteString);
         if ([mediaView isKindOfClass:UIView.class]) {
             gStoryRenderedImage = FBPStoryRenderMediaView((UIView *)mediaView);
             if (gStoryRenderedImage) {
-                FBPStoryLog(@"photo fallback rendered mediaView points=%.0fx%.0f scale=%.1f pixels=%.0fx%.0f",
-                            gStoryRenderedImage.size.width, gStoryRenderedImage.size.height,
-                            gStoryRenderedImage.scale,
-                            gStoryRenderedImage.size.width * gStoryRenderedImage.scale,
-                            gStoryRenderedImage.size.height * gStoryRenderedImage.scale);
             }
         }
     }
@@ -543,8 +524,6 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
     gStoryVideoURL = [url copy];
     gStoryVideoID = [NSString stringWithFormat:@"photo-%lu",
                      (unsigned long)url.absoluteString.hash];
-
-    FBPStoryLog(@"captured PHOTO mediaClass=%@ url=%@", mediaClass, url.absoluteString);
 
     dispatch_async(dispatch_get_main_queue(), ^{
         FBPStoryInstallOrUpdateButton((UIViewController *)controller);
