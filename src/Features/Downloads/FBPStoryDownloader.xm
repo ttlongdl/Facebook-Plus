@@ -276,6 +276,52 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                             }
 
                             if ([innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"]) {
+                                NSUInteger (*sendUInt)(id, SEL) = (NSUInteger (*)(id, SEL))objc_msgSend;
+                                NSInteger (*sendInt)(id, SEL) = (NSInteger (*)(id, SEL))objc_msgSend;
+                                SEL targetFlagSel = NSSelectorFromString(@"targetImageFlag");
+                                SEL imageSourceSel = NSSelectorFromString(@"imageSource");
+                                if ([innerValue respondsToSelector:targetFlagSel])
+                                    FBPStoryLog(@"SOURCE-PRIMITIVE specifier targetImageFlag=%llu",
+                                                (unsigned long long)sendUInt(innerValue, targetFlagSel));
+                                if ([innerValue respondsToSelector:imageSourceSel])
+                                    FBPStoryLog(@"SOURCE-PRIMITIVE specifier imageSource=%lld",
+                                                (long long)sendInt(innerValue, imageSourceSel));
+
+                                id targetNode = FBPStoryObjectGetter(innerValue, @"targetNode");
+                                FBPStoryLog(@"SOURCE-TARGET-NODE class=%@ value=%@",
+                                            NSStringFromClass([targetNode class]), [targetNode description]);
+                                if (targetNode) {
+                                    id targetURL = FBPStoryObjectGetter(targetNode, @"url");
+                                    SEL desiredSel = NSSelectorFromString(@"desiredImageFlag");
+                                    SEL imageFlagSel = NSSelectorFromString(@"imageFlag");
+                                    unsigned long long desired = [targetNode respondsToSelector:desiredSel]
+                                        ? (unsigned long long)sendUInt(targetNode, desiredSel) : 0;
+                                    unsigned long long imageFlag = [targetNode respondsToSelector:imageFlagSel]
+                                        ? (unsigned long long)sendUInt(targetNode, imageFlagSel) : 0;
+                                    FBPStoryLog(@"SOURCE-TARGET-NODE url=%@ desiredImageFlag=%llu imageFlag=%llu",
+                                                targetURL, desired, imageFlag);
+                                }
+
+                                id infoNodes = FBPStoryObjectGetter(innerValue, @"infoNodes");
+                                if ([infoNodes conformsToProtocol:@protocol(NSFastEnumeration)]) {
+                                    NSUInteger infoIndex = 0;
+                                    for (id infoNode in infoNodes) {
+                                        id infoURL = FBPStoryObjectGetter(infoNode, @"url");
+                                        SEL desiredSel = NSSelectorFromString(@"desiredImageFlag");
+                                        SEL imageFlagSel = NSSelectorFromString(@"imageFlag");
+                                        unsigned long long desired = [infoNode respondsToSelector:desiredSel]
+                                            ? (unsigned long long)sendUInt(infoNode, desiredSel) : 0;
+                                        unsigned long long imageFlag = [infoNode respondsToSelector:imageFlagSel]
+                                            ? (unsigned long long)sendUInt(infoNode, imageFlagSel) : 0;
+                                        FBPStoryLog(@"SOURCE-INFO-NODE[%lu] class=%@ url=%@ desiredImageFlag=%llu imageFlag=%llu value=%@",
+                                                    (unsigned long)infoIndex++, NSStringFromClass([infoNode class]),
+                                                    infoURL, desired, imageFlag, [infoNode description]);
+                                    }
+                                } else {
+                                    FBPStoryLog(@"SOURCE-INFO-NODES unavailable class=%@ value=%@",
+                                                NSStringFromClass([infoNodes class]), [infoNodes description]);
+                                }
+
                                 id nodes = FBPStoryObjectGetter(innerValue, @"downloadNodes");
                                 if ([nodes conformsToProtocol:@protocol(NSFastEnumeration)]) {
                                     NSUInteger nodeIndex = 0;
@@ -285,6 +331,14 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                                         if (nodeDesc.length > 1200) nodeDesc = [[nodeDesc substringToIndex:1200] stringByAppendingString:@"…"];
                                         FBPStoryLog(@"SOURCE-NODE %@ class=%@ value=%@", nodeLabel,
                                                     NSStringFromClass([node class]), nodeDesc);
+                                        SEL desiredSel = NSSelectorFromString(@"desiredImageFlag");
+                                        SEL imageFlagSel = NSSelectorFromString(@"imageFlag");
+                                        unsigned long long desired = [node respondsToSelector:desiredSel]
+                                            ? (unsigned long long)sendUInt(node, desiredSel) : 0;
+                                        unsigned long long imageFlag = [node respondsToSelector:imageFlagSel]
+                                            ? (unsigned long long)sendUInt(node, imageFlagSel) : 0;
+                                        FBPStoryLog(@"SOURCE-NODE-FLAGS %@ desiredImageFlag=%llu imageFlag=%llu",
+                                                    nodeLabel, desired, imageFlag);
                                         FBPStoryLogObjectSourceGetters(node, nodeLabel);
                                         FBPStoryLogObjectSourceIvars(node, nodeLabel);
                                         FBPStoryLogClassMetadata(node, nodeLabel);
