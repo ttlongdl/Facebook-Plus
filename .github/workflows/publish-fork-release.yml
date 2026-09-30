@@ -2,6 +2,9 @@ name: Publish Fork Release
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
 
 permissions:
   contents: write
@@ -9,6 +12,7 @@ permissions:
 
 jobs:
   publish:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_commit.message == 'Prepare v1.0.1-7 release trigger') }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -71,3 +75,6 @@ jobs:
             --target main \
             --title "Facebook Plus v1.0.1-7 (ttlongdl fork)" \
             --notes-file RELEASE_NOTES.md
+
+      - name: Remove merged Story test branch
+        run: git push origin --delete test/story-photo-probe || true
