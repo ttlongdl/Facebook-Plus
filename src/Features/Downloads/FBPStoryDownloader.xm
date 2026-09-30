@@ -221,6 +221,27 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                                                 NSStringFromClass([image2048 class]), [image2048 description]);
                                     FBPStoryLogObjectSourceGetters(image2048, imageLabel);
                                     FBPStoryLogObjectSourceIvars(image2048, imageLabel);
+
+                                    for (Class imgCls = [image2048 class]; imgCls && imgCls != NSObject.class;
+                                         imgCls = class_getSuperclass(imgCls)) {
+                                        unsigned int imgCount = 0;
+                                        Ivar *imgIvars = class_copyIvarList(imgCls, &imgCount);
+                                        for (unsigned int k = 0; k < imgCount && k < 120; k++) {
+                                            Ivar iv = imgIvars[k];
+                                            const char *enc = ivar_getTypeEncoding(iv);
+                                            if (!enc || enc[0] != '@') continue;
+                                            NSString *n = [NSString stringWithUTF8String:ivar_getName(iv) ?: ""];
+                                            id v = nil;
+                                            @try { v = object_getIvar(image2048, iv); }
+                                            @catch (__unused NSException *e) {}
+                                            if (!v) continue;
+                                            NSString *d = [v description] ?: @"";
+                                            if (d.length > 1600) d = [[d substringToIndex:1600] stringByAppendingString:@"…"];
+                                            FBPStoryLog(@"SOURCE-2048-ALL ivar=%@ class=%@ value=%@",
+                                                        n, NSStringFromClass([v class]), d);
+                                        }
+                                        free(imgIvars);
+                                    }
                                 } else {
                                     FBPStoryLog(@"SOURCE-2048 unavailable");
                                 }
