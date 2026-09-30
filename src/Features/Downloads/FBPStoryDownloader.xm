@@ -35,33 +35,10 @@ static BOOL gStoryDownloading = NO;
 static const NSInteger kFBPStoryDownloadTag = 0x53444C31; // SDL1
 static const NSInteger kFBPStoryProgressTag = 0x53445031; // SDP1
 
-static NSString *FBPStoryLogPath(void) {
-    NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,
-                                                           NSUserDomainMask,
-                                                           YES) firstObject];
-    return [docs stringByAppendingPathComponent:@"FBP-StoryDownload.txt"];
-}
-
 static void FBPStoryLog(NSString *format, ...) {
-    va_list args;
-    va_start(args, format);
-    NSString *msg = [[NSString alloc] initWithFormat:format arguments:args];
-    va_end(args);
-
-    NSString *line = [NSString stringWithFormat:@"[%@] %@\\n", [NSDate date], msg];
-    NSData *data = [line dataUsingEncoding:NSUTF8StringEncoding];
-    NSString *path = FBPStoryLogPath();
-
-    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
-        [data writeToFile:path atomically:YES];
-        return;
-    }
-
-    NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:path];
-    if (!fh) return;
-    [fh seekToEndOfFile];
-    [fh writeData:data];
-    [fh closeFile];
+    // Intentionally disabled in release builds. Keep call sites lightweight and
+    // avoid creating persistent Story Downloader log files in the app sandbox.
+    (void)format;
 }
 
 static Method FBPStoryObjectGetterMethod(id obj, NSString *name) {
