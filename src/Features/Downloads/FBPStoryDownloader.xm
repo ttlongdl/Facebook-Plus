@@ -47,7 +47,8 @@ static void FBPStoryLog(NSString *format, ...) {
     NSString *msg = [[NSString alloc] initWithFormat:format arguments:args];
     va_end(args);
 
-    NSString *line = [NSString stringWithFormat:@"[%@] %@\n", [NSDate date], msg];
+    NSString *line = [NSString stringWithFormat:@"[%@] %@
+", [NSDate date], msg];
     NSData *data = [line dataUsingEncoding:NSUTF8StringEncoding];
     NSString *path = FBPStoryLogPath();
 
@@ -229,7 +230,9 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                             [innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"]) {
                             NSString *probeLabel = [NSString stringWithFormat:@"inner.%@.%@", innerName, innerClassName];
                             FBPStoryLogObjectSourceGetters(innerValue, probeLabel);
-                            FBPStoryLogObjectSourceIvars(innerValue, probeLabel);\n                            if ([innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"])\n                                FBPStoryLogClassMetadata(innerValue, probeLabel);
+                            FBPStoryLogObjectSourceIvars(innerValue, probeLabel);
+                            if ([innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"])
+                                FBPStoryLogClassMetadata(innerValue, probeLabel);
 
                             if ([innerClassName isEqualToString:@"FBMemPhoto"]) {
                                 id snacksMedia = FBPStoryObjectGetter(innerValue, @"asFBSnacksMedia");
@@ -284,7 +287,8 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                                         FBPStoryLog(@"SOURCE-NODE %@ class=%@ value=%@", nodeLabel,
                                                     NSStringFromClass([node class]), nodeDesc);
                                         FBPStoryLogObjectSourceGetters(node, nodeLabel);
-                                        FBPStoryLogObjectSourceIvars(node, nodeLabel);\n                                        FBPStoryLogClassMetadata(node, nodeLabel);
+                                        FBPStoryLogObjectSourceIvars(node, nodeLabel);
+                                        FBPStoryLogClassMetadata(node, nodeLabel);
                                     }
                                 } else {
                                     FBPStoryLog(@"SOURCE-NODE downloadNodes unavailable class=%@ value=%@",
