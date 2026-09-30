@@ -111,6 +111,53 @@ static void FBPStoryDumpPhotoProbe(id controller, id mediaView) {
     if([mediaView isKindOfClass:UIView.class]){ NSMutableArray *q=[NSMutableArray arrayWithObject:mediaView]; NSUInteger seen=0; while(q.count&&seen<80){ UIView *v=q.firstObject; [q removeObjectAtIndex:0]; NSString *x=@""; if([v isKindOfClass:UIImageView.class]){UIImage *im=((UIImageView*)v).image;x=[NSString stringWithFormat:@" image=%@ %.0fx%.0f",im?@"YES":@"NO",im.size.width,im.size.height];} FBPStoryLog(@"PHOTO-PROBE view <%@> frame=%@%@",NSStringFromClass(v.class),NSStringFromCGRect(v.frame),x); [q addObjectsFromArray:v.subviews]; seen++; }}
 }
 
+static BOOL FBPStoryProbe3RelevantName(NSString *name) {
+    NSString *s = name.lowercaseString;
+    return [s containsString:@"image"] || [s containsString:@"photo"] ||
+           [s containsString:@"media"] || [s containsString:@"url"] ||
+           [s containsString:@"request"] || [s containsString:@"source"] ||
+           [s containsString:@"model"] || [s containsString:@"content"];
+}
+
+static void FBPStoryProbe3Object(id obj, NSString *label) {
+    if (!obj) { FBPStoryLog(@"PROBE3 %@ = nil", label); return; }
+    FBPStoryLog(@"PROBE3 %@ class=%@", label, NSStringFromClass([obj class]));
+    for (Class cls=[obj class]; cls && cls!=NSObject.class; cls=class_getSuperclass(cls)) {
+        unsigned int mc=0; Method *methods=class_copyMethodList(cls,&mc); NSUInteger out=0;
+        for(unsigned int i=0;i<mc && out<50;i++){
+            Method m=methods[i]; if(method_getNumberOfArguments(m)!=2) continue;
+            char ret[16]={0}; method_getReturnType(m,ret,sizeof(ret)); if(ret[0]!='@') continue;
+            NSString *name=NSStringFromSelector(method_getName(m)); if(!FBPStoryProbe3RelevantName(name)) continue;
+            id v=FBPStoryObjectGetter(obj,name); NSString *d=[v description]?:@"nil"; if(d.length>600)d=[[d substringToIndex:600]stringByAppendingString:@"…"];
+            FBPStoryLog(@"PROBE3 %@ getter %@ -> <%@> %@",label,name,v?NSStringFromClass([v class]):@"nil",d); out++;
+        } free(methods);
+        unsigned int ic=0; Ivar *ivars=class_copyIvarList(cls,&ic); out=0;
+        for(unsigned int i=0;i<ic && out<50;i++){
+            Ivar iv=ivars[i]; const char *enc=ivar_getTypeEncoding(iv); if(!enc||enc[0]!='@') continue;
+            NSString *name=@(ivar_getName(iv)); if(!FBPStoryProbe3RelevantName(name)) continue;
+            id v=nil; @try{v=object_getIvar(obj,iv);}@catch(__unused NSException *e){}
+            NSString *d=[v description]?:@"nil"; if(d.length>600)d=[[d substringToIndex:600]stringByAppendingString:@"…"];
+            FBPStoryLog(@"PROBE3 %@ ivar %@ -> <%@> %@",label,name,v?NSStringFromClass([v class]):@"nil",d); out++;
+        } free(ivars);
+    }
+}
+
+static void FBPStoryRunProbe3(id mediaView) {
+    id photoView=FBPStoryObjectGetter(mediaView,@"photoView");
+    id loadedInfo=FBPStoryObjectGetter(mediaView,@"mediaViewLoadedInfo");
+    FBPStoryProbe3Object(photoView,@"photoView");
+    FBPStoryProbe3Object(loadedInfo,@"loadedInfo");
+    if([photoView isKindOfClass:UIView.class]){
+        NSMutableArray *q=[NSMutableArray arrayWithObject:photoView]; NSUInteger seen=0;
+        while(q.count&&seen<40){UIView *v=q.firstObject;[q removeObjectAtIndex:0];
+            NSString *cn=NSStringFromClass(v.class);
+            if([cn containsString:@"WebPhoto"]||[cn containsString:@"AnimatedImage"]||[cn containsString:@"ImageView"])
+                FBPStoryProbe3Object(v,[NSString stringWithFormat:@"view:%@",cn]);
+            [q addObjectsFromArray:v.subviews];seen++;
+        }
+    }
+}
+
 static BOOL FBPStoryControllerVisible(UIViewController *vc) {
     if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
     UIView *v = vc.view;
@@ -480,6 +527,7 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
                          (unsigned long)rendered.size.height];
         FBPStoryLog(@"captured RENDERED PHOTO mediaClass=%@ size=%.0fx%.0f",
                     mediaClass, rendered.size.width, rendered.size.height);
+        FBPStoryRunProbe3(mediaView);
         dispatch_async(dispatch_get_main_queue(), ^{
             FBPStoryInstallOrUpdateButton((UIViewController *)controller);
         });
