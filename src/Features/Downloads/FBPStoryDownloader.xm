@@ -169,6 +169,44 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
             FBPStoryLog(@"SOURCE-IVAR %@ ivar=%@ class=%@ value=%@",
                         label, name, NSStringFromClass([value class]), desc);
             emitted++;
+
+            // FBSnacksWebPhotoView wraps the actual FBWebPhotoView in _photoView.
+            // Probe that inner object one level deeper; it owns the concrete photoID.
+            if ([label isEqualToString:@"photoView"] &&
+                [name isEqualToString:@"_photoView"] &&
+                [NSStringFromClass([value class]) isEqualToString:@"FBWebPhotoView"]) {
+                FBPStoryLog(@"SOURCE-INNER begin class=%@ value=%@",
+                            NSStringFromClass([value class]), desc);
+                FBPStoryLogObjectSourceGetters(value, @"innerFBWebPhotoView");
+                // Avoid recursion through this helper; enumerate inner ivars inline.
+                for (Class innerCls = [value class]; innerCls && innerCls != NSObject.class;
+                     innerCls = class_getSuperclass(innerCls)) {
+                    unsigned int innerCount = 0;
+                    Ivar *innerIvars = class_copyIvarList(innerCls, &innerCount);
+                    NSUInteger innerEmitted = 0;
+                    for (unsigned int j = 0; j < innerCount && innerEmitted < 80; j++) {
+                        Ivar innerIvar = innerIvars[j];
+                        const char *innerEncoding = ivar_getTypeEncoding(innerIvar);
+                        if (!innerEncoding || innerEncoding[0] != '@') continue;
+                        NSString *innerName =
+                            [NSString stringWithUTF8String:ivar_getName(innerIvar) ?: ""];
+                        if (!FBPStoryInterestingSourceName(innerName)) continue;
+                        id innerValue = nil;
+                        @try { innerValue = object_getIvar(value, innerIvar); }
+                        @catch (__unused NSException *e) {}
+                        if (!innerValue) continue;
+                        NSString *innerDesc = [innerValue description] ?: @"";
+                        if (innerDesc.length > 1200) {
+                            innerDesc = [[innerDesc substringToIndex:1200]
+                                         stringByAppendingString:@"…"];
+                        }
+                        FBPStoryLog(@"SOURCE-INNER-IVAR ivar=%@ class=%@ value=%@",
+                                    innerName, NSStringFromClass([innerValue class]), innerDesc);
+                        innerEmitted++;
+                    }
+                    free(innerIvars);
+                }
+            }
         }
         free(ivars);
     }
