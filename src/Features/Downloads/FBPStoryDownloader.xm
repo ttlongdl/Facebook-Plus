@@ -108,6 +108,28 @@ static NSURL *FBPStoryResponseImageURLFromMediaView(id mediaView) {
     return nil;
 }
 
+static NSURL *FBPStoryHDVariantURL(NSURL *url) {
+    if (!url) return nil;
+    NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
+    if (!components) return nil;
+    NSMutableArray<NSURLQueryItem *> *items = [components.queryItems mutableCopy] ?: [NSMutableArray array];
+    for (NSUInteger i = 0; i < items.count; i++) {
+        NSURLQueryItem *item = items[i];
+        if ([item.name isEqualToString:@"stp"] && item.value.length) {
+            NSString *value = [item.value stringByReplacingOccurrencesOfString:@"_fb80" withString:@""];
+            items[i] = [NSURLQueryItem queryItemWithName:@"stp" value:value];
+        }
+    }
+    NSIndexSet *oldSize = [items indexesOfObjectsPassingTest:^BOOL(NSURLQueryItem *item, NSUInteger idx, BOOL *stop) {
+        return [item.name isEqualToString:@"cstp"] || [item.name isEqualToString:@"ctp"];
+    }];
+    [items removeObjectsAtIndexes:oldSize];
+    [items addObject:[NSURLQueryItem queryItemWithName:@"cstp" value:@"mx1152x2048"]];
+    [items addObject:[NSURLQueryItem queryItemWithName:@"ctp" value:@"s1152x2048"]];
+    components.queryItems = items;
+    return components.URL;
+}
+
 static void FBPStoryDumpPhotoProbe(id controller, id mediaView) {
     FBPStoryLog(@"PHOTO-PROBE controllerClass=%@ mediaClass=%@", NSStringFromClass([controller class]), NSStringFromClass([mediaView class]));
     unsigned int count=0; Method *methods=class_copyMethodList([mediaView class], &count); NSUInteger n=0;
@@ -365,11 +387,6 @@ static void FBPStoryStartDownload(void) {
     if (!FBPStoryDownloaderEnabled()) { FBPStoryHideButton(); return; }
     if (gStoryDownloading || !gStoryVideoURL) return;
 
-    if (!gStoryMediaIsVideo && gStoryRenderedImage) {
-        FBPStorySaveRenderedImage(gStoryRenderedImage);
-        return;
-    }
-
     NSURL *url = [gStoryVideoURL copy];
     if (![url.scheme.lowercaseString hasPrefix:@"http"]) return;
 
@@ -546,6 +563,11 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
             return;
         }
         FBPStoryLog(@"photo fallback resolved FBWebPhotoView response URL=%@", url.absoluteString);
+        NSURL *hdVariant = FBPStoryHDVariantURL(url);
+        if (hdVariant) {
+            FBPStoryLog(@"photo fallback HD variant URL=%@", hdVariant.absoluteString);
+            url = hdVariant;
+        }
         FBPStoryLogPhotoSourceCandidates(mediaView);
         if ([mediaView isKindOfClass:UIView.class]) {
             gStoryRenderedImage = FBPStoryRenderMediaView((UIView *)mediaView);
