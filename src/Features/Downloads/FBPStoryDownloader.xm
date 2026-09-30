@@ -1136,48 +1136,55 @@ static BOOL FBPStoryCaptureCurrentVideo(id controller, id mediaView) {
     return YES;
 }
 
+static void FBPStoryRetryVideoCapture(id controller, id mediaView, NSUInteger attempt) {
+    if (!controller || !mediaView || !FBPStoryControllerVisible((UIViewController *)controller))
+        return;
+
+    if (FBPStoryCaptureCurrentVideo(controller, mediaView)) {
+        FBPStoryLog(@"VIDEO-113 late capture success mediaClass=%@ attempt=%llu",
+                    NSStringFromClass([mediaView class]), (unsigned long long)attempt);
+        return;
+    }
+
+    if (attempt >= 12) {
+        FBPStoryLog(@"VIDEO-113 late capture exhausted mediaClass=%@",
+                    NSStringFromClass([mediaView class]));
+        return;
+    }
+
+    __weak UIViewController *weakController = (UIViewController *)controller;
+    __weak id weakMediaView = mediaView;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        UIViewController *vc = weakController;
+        id view = weakMediaView;
+        if (vc && view)
+            FBPStoryRetryVideoCapture(vc, view, attempt + 1);
+    });
+}
+
 static void FBPStoryCaptureVideoWithRetry(id controller, id mediaView) {
     if (FBPStoryCaptureCurrentVideo(controller, mediaView)) return;
 
     NSString *mediaClass = mediaView ? NSStringFromClass([mediaView class]) : @"(nil)";
     NSString *lower = mediaClass.lowercaseString;
-    BOOL looksLikeVideo = [lower containsString:@"video"];
-    if (!looksLikeVideo) return;
+    if (![lower containsString:@"video"]) return;
 
     // The LiveVideo Story creates its playback item after didStartPlaying.
     // Retry briefly while the same controller is still visible; stop as soon
     // as the URL is available. 12 x 250 ms covers the observed late-player
-    // race without leaving a persistent timer behind.
-    __block NSUInteger attempt = 0;
+    // race without retaining a self-referencing block.
+    FBPStoryLog(@"VIDEO-113 late capture scheduled mediaClass=%@", mediaClass);
+
     __weak UIViewController *weakController = (UIViewController *)controller;
     __weak id weakMediaView = mediaView;
-    __block void (^retry)(void) = nil;
-    retry = ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
         UIViewController *vc = weakController;
         id view = weakMediaView;
-        if (!vc || !view || !FBPStoryControllerVisible(vc)) {
-            retry = nil;
-            return;
-        }
-        attempt++;
-        if (FBPStoryCaptureCurrentVideo(vc, view)) {
-            FBPStoryLog(@"VIDEO-113 late capture success mediaClass=%@ attempt=%llu",
-                        NSStringFromClass([view class]), (unsigned long long)attempt);
-            retry = nil;
-            return;
-        }
-        if (attempt >= 12) {
-            FBPStoryLog(@"VIDEO-113 late capture exhausted mediaClass=%@",
-                        NSStringFromClass([view class]));
-            retry = nil;
-            return;
-        }
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), retry);
-    };
-    FBPStoryLog(@"VIDEO-113 late capture scheduled mediaClass=%@", mediaClass);
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)),
-                   dispatch_get_main_queue(), retry);
+        if (vc && view)
+            FBPStoryRetryVideoCapture(vc, view, 1);
+    });
 }
 
 static NSString *FBPStoryWebPhotoModelID(id view) {
