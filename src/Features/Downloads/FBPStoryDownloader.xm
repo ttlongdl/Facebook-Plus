@@ -1071,13 +1071,38 @@ static void FBPStoryInstallOrUpdateButton(UIViewController *vc) {
     gStoryProgress = progress;
 }
 
-static void FBPStoryCaptureCurrentVideo(id controller, id mediaView) {
-    Class videoClass = objc_getClass("FBSnacksNewVideoView");
-    if (!videoClass || !mediaView || ![mediaView isKindOfClass:videoClass]) return;
+static id FBPStoryFindVideoPlaybackItem(id mediaView) {
+    if (!mediaView) return nil;
 
     id playbackController = FBPStoryObjectGetter(mediaView, @"playbackController");
     id item = FBPStoryObjectGetter(playbackController, @"currentVideoPlaybackItem");
-    if (!item) return;
+    if (item) return item;
+
+    // Some Story variants (notably FBSnacksLiveVideoView) wrap the real
+    // FBSnacksNewVideoView/player. Walk only this Story's view tree so a late
+    // player can be found without broad runtime scanning.
+    if (![mediaView isKindOfClass:UIView.class]) return nil;
+    NSMutableArray *queue = [NSMutableArray arrayWithObject:(UIView *)mediaView];
+    NSUInteger seen = 0;
+    while (queue.count && seen < 120) {
+        UIView *view = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+
+        playbackController = FBPStoryObjectGetter(view, @"playbackController");
+        item = FBPStoryObjectGetter(playbackController, @"currentVideoPlaybackItem");
+        if (item) return item;
+
+        [queue addObjectsFromArray:view.subviews];
+        seen++;
+    }
+    return nil;
+}
+
+static BOOL FBPStoryCaptureCurrentVideo(id controller, id mediaView) {
+    if (!controller || !mediaView) return NO;
+
+    id item = FBPStoryFindVideoPlaybackItem(mediaView);
+    if (!item) return NO;
 
     id videoID = FBPStoryObjectGetter(item, @"videoID");
     id hd = FBPStoryObjectGetter(item, @"HDPlaybackURL");
@@ -1092,7 +1117,7 @@ static void FBPStoryCaptureCurrentVideo(id controller, id mediaView) {
         else if ([sd isKindOfClass:NSString.class]) url = [NSURL URLWithString:sd];
     }
 
-    if (!url || ![url.scheme.lowercaseString hasPrefix:@"http"]) return;
+    if (!url || ![url.scheme.lowercaseString hasPrefix:@"http"]) return NO;
 
     gStoryController = controller;
     gStoryMediaView = mediaView;
@@ -1101,11 +1126,58 @@ static void FBPStoryCaptureCurrentVideo(id controller, id mediaView) {
     gStoryVideoURL = [url copy];
     gStoryVideoID = [videoID isKindOfClass:NSString.class] ? [videoID copy] : [videoID description];
 
-    FBPStoryLog(@"captured videoID=%@ url=%@", gStoryVideoID, gStoryVideoURL.absoluteString);
+    FBPStoryLog(@"captured videoID=%@ mediaClass=%@ url=%@",
+                gStoryVideoID, NSStringFromClass([mediaView class]),
+                gStoryVideoURL.absoluteString);
 
     dispatch_async(dispatch_get_main_queue(), ^{
         FBPStoryInstallOrUpdateButton((UIViewController *)controller);
     });
+    return YES;
+}
+
+static void FBPStoryCaptureVideoWithRetry(id controller, id mediaView) {
+    if (FBPStoryCaptureCurrentVideo(controller, mediaView)) return;
+
+    NSString *mediaClass = mediaView ? NSStringFromClass([mediaView class]) : @"(nil)";
+    NSString *lower = mediaClass.lowercaseString;
+    BOOL looksLikeVideo = [lower containsString:@"video"];
+    if (!looksLikeVideo) return;
+
+    // The LiveVideo Story creates its playback item after didStartPlaying.
+    // Retry briefly while the same controller is still visible; stop as soon
+    // as the URL is available. 12 x 250 ms covers the observed late-player
+    // race without leaving a persistent timer behind.
+    __block NSUInteger attempt = 0;
+    __weak UIViewController *weakController = (UIViewController *)controller;
+    __weak id weakMediaView = mediaView;
+    __block void (^retry)(void) = nil;
+    retry = ^{
+        UIViewController *vc = weakController;
+        id view = weakMediaView;
+        if (!vc || !view || !FBPStoryControllerVisible(vc)) {
+            retry = nil;
+            return;
+        }
+        attempt++;
+        if (FBPStoryCaptureCurrentVideo(vc, view)) {
+            FBPStoryLog(@"VIDEO-113 late capture success mediaClass=%@ attempt=%llu",
+                        NSStringFromClass([view class]), (unsigned long long)attempt);
+            retry = nil;
+            return;
+        }
+        if (attempt >= 12) {
+            FBPStoryLog(@"VIDEO-113 late capture exhausted mediaClass=%@",
+                        NSStringFromClass([view class]));
+            retry = nil;
+            return;
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), retry);
+    };
+    FBPStoryLog(@"VIDEO-113 late capture scheduled mediaClass=%@", mediaClass);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), retry);
 }
 
 static NSString *FBPStoryWebPhotoModelID(id view) {
@@ -1380,9 +1452,9 @@ static void FBPStoryDidStartPlayingHook(id self, SEL _cmd, id mediaView, id info
         return;
     }
 
-    Class videoClass = objc_getClass("FBSnacksNewVideoView");
-    if (videoClass && mediaView && [mediaView isKindOfClass:videoClass]) {
-        FBPStoryCaptureCurrentVideo(self, mediaView);
+    NSString *mediaClass = mediaView ? NSStringFromClass([mediaView class]) : @"";
+    if ([mediaClass.lowercaseString containsString:@"video"]) {
+        FBPStoryCaptureVideoWithRetry(self, mediaView);
         return;
     }
 
