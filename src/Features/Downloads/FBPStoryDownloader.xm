@@ -84,6 +84,30 @@ static id FBPStoryObjectGetter(id obj, NSString *name) {
     }
 }
 
+static NSURL *FBPStoryResponseImageURLFromMediaView(id mediaView) {
+    if (![mediaView isKindOfClass:UIView.class]) return nil;
+    NSMutableArray *queue = [NSMutableArray arrayWithObject:(UIView *)mediaView];
+    NSUInteger seen = 0;
+    while (queue.count && seen < 100) {
+        UIView *view = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+        if ([NSStringFromClass(view.class) isEqualToString:@"FBWebPhotoView"]) {
+            Ivar iv = class_getInstanceVariable(view.class, "_responseImageURL");
+            if (iv) {
+                id raw = nil;
+                @try { raw = object_getIvar(view, iv); } @catch (__unused NSException *e) {}
+                NSURL *url = nil;
+                if ([raw isKindOfClass:NSURL.class]) url = raw;
+                else if ([raw isKindOfClass:NSString.class]) url = [NSURL URLWithString:raw];
+                if ([url.scheme.lowercaseString hasPrefix:@"http"]) return url;
+            }
+        }
+        [queue addObjectsFromArray:view.subviews];
+        seen++;
+    }
+    return nil;
+}
+
 static UIImage *FBPStoryFindRenderedImage(UIView *root) {
     if (!root) return nil;
     NSMutableArray *queue = [NSMutableArray arrayWithObject:root];
@@ -321,27 +345,9 @@ static NSMutableSet *gStoryDownloadDelegates = nil;
 
 static void FBPStoryStartDownload(void) {
     if (!FBPStoryDownloaderEnabled()) { FBPStoryHideButton(); return; }
-    if (gStoryDownloading || (!gStoryVideoURL && !gStoryRenderedImage)) return;
+    if (gStoryDownloading || !gStoryVideoURL) return;
 
     NSURL *url = [gStoryVideoURL copy];
-    UIImage *renderedImage = gStoryRenderedImage;
-    if (!url && renderedImage) {
-        gStoryDownloading = YES;
-        FBPStorySetButtonState(NO);
-        FBPStoryLog(@"save rendered photo mediaID=%@ size=%.0fx%.0f", gStoryVideoID, renderedImage.size.width, renderedImage.size.height);
-        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-            [PHAssetChangeRequest creationRequestForAssetFromImage:renderedImage];
-        } completionHandler:^(BOOL success, NSError *error) {
-            FBPStoryLog(@"Photos save rendered success=%d error=%@", success, error);
-            dispatch_async(dispatch_get_main_queue(), ^{
-                gStoryDownloading = NO;
-                FBPStorySetButtonState(YES);
-                FBPStoryFlashSymbol(success ? @"checkmark" : @"xmark");
-                if (success) FBPStoryShowSavedPopup();
-            });
-        }];
-        return;
-    }
     if (![url.scheme.lowercaseString hasPrefix:@"http"]) return;
 
     gStoryDownloading = YES;
@@ -400,7 +406,7 @@ static void FBPStoryStartDownload(void) {
 
 static void FBPStoryInstallOrUpdateButton(UIViewController *vc) {
     if (!FBPStoryDownloaderEnabled()) { FBPStoryHideButton(); return; }
-    if (!vc || !FBPStoryControllerVisible(vc) || (!gStoryVideoURL && !gStoryRenderedImage)) return;
+    if (!vc || !FBPStoryControllerVisible(vc) || !gStoryVideoURL) return;
 
     UIView *host = vc.view;
     if (!host) return;
@@ -510,28 +516,13 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
     else if ([raw isKindOfClass:NSString.class]) url = [NSURL URLWithString:raw];
 
     if (!url || ![url.scheme.lowercaseString hasPrefix:@"http"]) {
-        UIImage *rendered = [mediaView isKindOfClass:UIView.class]
-            ? FBPStoryFindRenderedImage((UIView *)mediaView) : nil;
-        if (!rendered) {
-            FBPStoryLog(@"photo fallback rejected: no direct URL and no rendered UIImage");
+        url = FBPStoryResponseImageURLFromMediaView(mediaView);
+        if (!url) {
+            FBPStoryLog(@"photo fallback rejected: no direct URL and no FBWebPhotoView response URL");
             FBPStoryDumpPhotoProbe(controller, mediaView);
             return;
         }
-        gStoryController = controller;
-        gStoryMediaView = mediaView;
-        gStoryMediaIsVideo = NO;
-        gStoryVideoURL = nil;
-        gStoryRenderedImage = rendered;
-        gStoryVideoID = [NSString stringWithFormat:@"rendered-%lux%lu",
-                         (unsigned long)rendered.size.width,
-                         (unsigned long)rendered.size.height];
-        FBPStoryLog(@"captured RENDERED PHOTO mediaClass=%@ size=%.0fx%.0f",
-                    mediaClass, rendered.size.width, rendered.size.height);
-        FBPStoryRunProbe3(mediaView);
-        dispatch_async(dispatch_get_main_queue(), ^{
-            FBPStoryInstallOrUpdateButton((UIViewController *)controller);
-        });
-        return;
+        FBPStoryLog(@"photo fallback resolved FBWebPhotoView response URL=%@", url.absoluteString);
     }
 
     gStoryController = controller;
