@@ -206,11 +206,25 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
 
                         NSString *innerClassName = NSStringFromClass([innerValue class]);
                         if ([innerClassName isEqualToString:@"FBMemPhoto"] ||
+                            [innerClassName isEqualToString:@"FBMemImage"] ||
                             [innerClassName isEqualToString:@"MOSCachedImage"] ||
                             [innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"]) {
                             NSString *probeLabel = [NSString stringWithFormat:@"inner.%@.%@", innerName, innerClassName];
                             FBPStoryLogObjectSourceGetters(innerValue, probeLabel);
                             FBPStoryLogObjectSourceIvars(innerValue, probeLabel);
+
+                            if ([innerClassName isEqualToString:@"FBMemPhoto"]) {
+                                id image2048 = FBPStoryObjectGetter(innerValue, @"image2048");
+                                if (image2048) {
+                                    NSString *imageLabel = @"FBMemPhoto.image2048";
+                                    FBPStoryLog(@"SOURCE-2048 class=%@ value=%@",
+                                                NSStringFromClass([image2048 class]), [image2048 description]);
+                                    FBPStoryLogObjectSourceGetters(image2048, imageLabel);
+                                    FBPStoryLogObjectSourceIvars(image2048, imageLabel);
+                                } else {
+                                    FBPStoryLog(@"SOURCE-2048 unavailable");
+                                }
+                            }
 
                             if ([innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"]) {
                                 id nodes = FBPStoryObjectGetter(innerValue, @"downloadNodes");
