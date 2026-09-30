@@ -361,28 +361,6 @@ static UIImage *FBPStoryRenderMediaView(UIView *view) {
     }];
 }
 
-static void FBPStorySaveRenderedImage(UIImage *image) {
-    if (!image) return;
-    gStoryDownloading = YES;
-    FBPStorySetButtonState(NO);
-    FBPStorySetProgress(0.5, YES);
-    FBPStoryLog(@"rendered save start mediaID=%@ points=%.0fx%.0f scale=%.1f pixels=%.0fx%.0f",
-                gStoryVideoID, image.size.width, image.size.height, image.scale,
-                image.size.width * image.scale, image.size.height * image.scale);
-    [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-        [PHAssetChangeRequest creationRequestForAssetFromImage:image];
-    } completionHandler:^(BOOL success, NSError *error) {
-        FBPStoryLog(@"Photos rendered save success=%d error=%@", success, error);
-        dispatch_async(dispatch_get_main_queue(), ^{
-            gStoryDownloading = NO;
-            FBPStorySetButtonState(YES);
-            FBPStorySetProgress(0, NO);
-            FBPStoryFlashSymbol(success ? @"checkmark" : @"xmark");
-            if (success) FBPStoryShowSavedPopup();
-        });
-    }];
-}
-
 static void FBPStoryStartDownload(void) {
     if (!FBPStoryDownloaderEnabled()) { FBPStoryHideButton(); return; }
     if (gStoryDownloading || !gStoryVideoURL) return;
