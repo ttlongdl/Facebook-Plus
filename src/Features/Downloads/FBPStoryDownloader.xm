@@ -149,6 +149,24 @@ static void FBPStoryLogObjectSourceGetters(id obj, NSString *label) {
     }
 }
 
+static void FBPStoryLogClassMetadata(id obj, NSString *label) {
+    if (!obj) return;
+    for (Class cls = [obj class]; cls && cls != NSObject.class; cls = class_getSuperclass(cls)) {
+        unsigned int pc = 0;
+        objc_property_t *ps = class_copyPropertyList(cls, &pc);
+        for (unsigned int i = 0; i < pc && i < 160; i++)
+            FBPStoryLog(@"SOURCE-META %@ class=%@ property=%s attrs=%s", label, NSStringFromClass(cls),
+                        property_getName(ps[i]) ?: "", property_getAttributes(ps[i]) ?: "");
+        free(ps);
+        unsigned int mc = 0;
+        Method *ms = class_copyMethodList(cls, &mc);
+        for (unsigned int i = 0; i < mc && i < 240; i++)
+            FBPStoryLog(@"SOURCE-META %@ class=%@ method=%@ types=%s", label, NSStringFromClass(cls),
+                        NSStringFromSelector(method_getName(ms[i])), method_getTypeEncoding(ms[i]) ?: "");
+        free(ms);
+    }
+}
+
 static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
     if (!obj) return;
     for (Class cls = [obj class]; cls && cls != NSObject.class; cls = class_getSuperclass(cls)) {
@@ -211,7 +229,7 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                             [innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"]) {
                             NSString *probeLabel = [NSString stringWithFormat:@"inner.%@.%@", innerName, innerClassName];
                             FBPStoryLogObjectSourceGetters(innerValue, probeLabel);
-                            FBPStoryLogObjectSourceIvars(innerValue, probeLabel);
+                            FBPStoryLogObjectSourceIvars(innerValue, probeLabel);\n                            if ([innerClassName isEqualToString:@"FBWebImageNetworkStreamingSpecifier"])\n                                FBPStoryLogClassMetadata(innerValue, probeLabel);
 
                             if ([innerClassName isEqualToString:@"FBMemPhoto"]) {
                                 id snacksMedia = FBPStoryObjectGetter(innerValue, @"asFBSnacksMedia");
@@ -266,7 +284,7 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                                         FBPStoryLog(@"SOURCE-NODE %@ class=%@ value=%@", nodeLabel,
                                                     NSStringFromClass([node class]), nodeDesc);
                                         FBPStoryLogObjectSourceGetters(node, nodeLabel);
-                                        FBPStoryLogObjectSourceIvars(node, nodeLabel);
+                                        FBPStoryLogObjectSourceIvars(node, nodeLabel);\n                                        FBPStoryLogClassMetadata(node, nodeLabel);
                                     }
                                 } else {
                                     FBPStoryLog(@"SOURCE-NODE downloadNodes unavailable class=%@ value=%@",
