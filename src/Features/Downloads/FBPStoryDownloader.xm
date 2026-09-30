@@ -415,6 +415,49 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                                     FBPStoryLog(@"SOURCE-CACHE-FILE unavailable value=%@", localURL);
                                 }
 
+                                NSArray *cacheProbeNames = @[@"metadata", @"extraData", @"originalImageData",
+                                                                      @"fileSize", @"imageSize", @"uiImage"];
+                                for (NSString *probeName in cacheProbeNames) {
+                                    id probeValue = FBPStoryObjectGetter(innerValue, probeName);
+                                    NSString *desc = [probeValue description] ?: @"(nil)";
+                                    if (desc.length > 2400) desc = [[desc substringToIndex:2400] stringByAppendingString:@"…"];
+                                    NSUInteger dataLength = [probeValue isKindOfClass:NSData.class] ? [(NSData *)probeValue length] : 0;
+                                    FBPStoryLog(@"SOURCE-CACHE-DIRECT getter=%@ class=%@ dataBytes=%llu value=%@",
+                                                probeName, NSStringFromClass([probeValue class]),
+                                                (unsigned long long)dataLength, desc);
+                                    if (probeValue && ![probeValue isKindOfClass:NSString.class] &&
+                                        ![probeValue isKindOfClass:NSNumber.class] &&
+                                        ![probeValue isKindOfClass:NSData.class] &&
+                                        ![probeValue isKindOfClass:NSURL.class] &&
+                                        ![probeValue isKindOfClass:UIImage.class]) {
+                                        FBPStoryLogObjectSourceGetters(probeValue,
+                                            [NSString stringWithFormat:@"MOSCachedImage.%@", probeName]);
+                                        FBPStoryLogObjectSourceIvars(probeValue,
+                                            [NSString stringWithFormat:@"MOSCachedImage.%@", probeName]);
+                                    }
+                                }
+
+                                SEL originalSizeSel = NSSelectorFromString(@"originalImageSize");
+                                Method originalSizeMethod = class_getInstanceMethod([innerValue class], originalSizeSel);
+                                if (originalSizeMethod) {
+                                    const char *types = method_getTypeEncoding(originalSizeMethod);
+                                    FBPStoryLog(@"SOURCE-CACHE-ORIGINAL-SIZE methodTypes=%s", types ?: "");
+                                    char retType[128] = {0};
+                                    method_getReturnType(originalSizeMethod, retType, sizeof(retType));
+                                    if (retType[0] == '{') {
+                                        CGSize (*sendSize)(id, SEL) = (CGSize (*)(id, SEL))objc_msgSend;
+                                        CGSize originalSize = sendSize(innerValue, originalSizeSel);
+                                        FBPStoryLog(@"SOURCE-CACHE-ORIGINAL-SIZE value=%.0fx%.0f",
+                                                    originalSize.width, originalSize.height);
+                                    } else if (retType[0] == '@') {
+                                        id originalSize = ((id (*)(id, SEL))objc_msgSend)(innerValue, originalSizeSel);
+                                        FBPStoryLog(@"SOURCE-CACHE-ORIGINAL-SIZE objectClass=%@ value=%@",
+                                                    NSStringFromClass([originalSize class]), [originalSize description]);
+                                    }
+                                } else {
+                                    FBPStoryLog(@"SOURCE-CACHE-ORIGINAL-SIZE unavailable");
+                                }
+
                                 for (Class cacheCls = [innerValue class]; cacheCls && cacheCls != NSObject.class;
                                      cacheCls = class_getSuperclass(cacheCls)) {
                                     unsigned int methodCount = 0;
