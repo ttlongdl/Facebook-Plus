@@ -1063,6 +1063,7 @@ static void FBPStoryDidStartPlayingHook(id self, SEL _cmd, id mediaView, id info
         return;
     }
 
+    FBPStoryDiscoverPhotoPipelineClasses();
     FBPStoryCaptureCurrentPhoto(self, mediaView);
 }
 
