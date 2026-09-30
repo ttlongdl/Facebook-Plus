@@ -234,6 +234,47 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                                 FBPStoryLogClassMetadata(innerValue, probeLabel);
 
                             if ([innerClassName isEqualToString:@"FBMemPhoto"]) {
+                                FBPStoryLog(@"SOURCE-PRE-SPEC begin class=%@", NSStringFromClass([innerValue class]));
+                                for (Class probeCls = [innerValue class]; probeCls && probeCls != NSObject.class;
+                                     probeCls = class_getSuperclass(probeCls)) {
+                                    unsigned int methodCount = 0;
+                                    Method *methods = class_copyMethodList(probeCls, &methodCount);
+                                    for (unsigned int mi = 0; mi < methodCount && mi < 1200; mi++) {
+                                        SEL sel = method_getName(methods[mi]);
+                                        NSString *selName = NSStringFromSelector(sel);
+                                        NSString *lower = selName.lowercaseString;
+                                        if ([lower containsString:@"specifier"] ||
+                                            [lower containsString:@"imageflag"] ||
+                                            [lower containsString:@"image"] ||
+                                            [lower containsString:@"size"] ||
+                                            [lower containsString:@"encoding"] ||
+                                            [lower containsString:@"photo"]) {
+                                            const char *types = method_getTypeEncoding(methods[mi]);
+                                            FBPStoryLog(@"SOURCE-PRE-SPEC class=%@ method=%@ types=%s",
+                                                        NSStringFromClass(probeCls), selName, types ?: "");
+                                        }
+                                    }
+                                    free(methods);
+
+                                    unsigned int propertyCount = 0;
+                                    objc_property_t *properties = class_copyPropertyList(probeCls, &propertyCount);
+                                    for (unsigned int pi = 0; pi < propertyCount && pi < 600; pi++) {
+                                        NSString *propName = [NSString stringWithUTF8String:property_getName(properties[pi]) ?: ""];
+                                        NSString *lower = propName.lowercaseString;
+                                        if ([lower containsString:@"specifier"] ||
+                                            [lower containsString:@"imageflag"] ||
+                                            [lower containsString:@"image"] ||
+                                            [lower containsString:@"size"] ||
+                                            [lower containsString:@"encoding"] ||
+                                            [lower containsString:@"photo"]) {
+                                            FBPStoryLog(@"SOURCE-PRE-SPEC class=%@ property=%@ attrs=%s",
+                                                        NSStringFromClass(probeCls), propName,
+                                                        property_getAttributes(properties[pi]) ?: "");
+                                        }
+                                    }
+                                    free(properties);
+                                }
+
                                 id snacksMedia = FBPStoryObjectGetter(innerValue, @"asFBSnacksMedia");
                                 if (snacksMedia) {
                                     FBPStoryLog(@"SOURCE-SNACKS-MEDIA class=%@ value=%@",
