@@ -115,6 +115,19 @@ static void FBPStoryDumpPhotoProbe(id controller, id mediaView) {
     if([mediaView isKindOfClass:UIView.class]){ NSMutableArray *q=[NSMutableArray arrayWithObject:mediaView]; NSUInteger seen=0; while(q.count&&seen<80){ UIView *v=q.firstObject; [q removeObjectAtIndex:0]; NSString *x=@""; if([v isKindOfClass:UIImageView.class]){UIImage *im=((UIImageView*)v).image;x=[NSString stringWithFormat:@" image=%@ %.0fx%.0f",im?@"YES":@"NO",im.size.width,im.size.height];} FBPStoryLog(@"PHOTO-PROBE view <%@> frame=%@%@",NSStringFromClass(v.class),NSStringFromCGRect(v.frame),x); [q addObjectsFromArray:v.subviews]; seen++; }}
 }
 
+static void FBPStoryLogPhotoSourceCandidates(id mediaView) {
+    NSArray<NSString *> *names = @[@"photoView", @"mediaViewLoadedInfo", @"media", @"model", @"content",
+                                   @"imageURL", @"photoURL", @"mediaURL", @"sourceURL", @"URL"];
+    for (NSString *name in names) {
+        id value = FBPStoryObjectGetter(mediaView, name);
+        if (!value) continue;
+        NSString *desc = [value description] ?: @"";
+        if (desc.length > 500) desc = [[desc substringToIndex:500] stringByAppendingString:@"…"];
+        FBPStoryLog(@"SOURCE-CANDIDATE getter=%@ class=%@ value=%@",
+                    name, NSStringFromClass([value class]), desc);
+    }
+}
+
 static BOOL FBPStoryControllerVisible(UIViewController *vc) {
     if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
     UIView *v = vc.view;
@@ -456,6 +469,7 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
             return;
         }
         FBPStoryLog(@"photo fallback resolved FBWebPhotoView response URL=%@", url.absoluteString);
+        FBPStoryLogPhotoSourceCandidates(mediaView);
     }
 
     gStoryController = controller;
