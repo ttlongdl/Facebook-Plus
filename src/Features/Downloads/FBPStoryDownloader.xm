@@ -108,28 +108,6 @@ static NSURL *FBPStoryResponseImageURLFromMediaView(id mediaView) {
     return nil;
 }
 
-static NSURL *FBPStoryHDVariantURL(NSURL *url) {
-    if (!url) return nil;
-    NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
-    if (!components) return nil;
-    NSMutableArray<NSURLQueryItem *> *items = [components.queryItems mutableCopy] ?: [NSMutableArray array];
-    for (NSUInteger i = 0; i < items.count; i++) {
-        NSURLQueryItem *item = items[i];
-        if ([item.name isEqualToString:@"stp"] && item.value.length) {
-            NSString *value = [item.value stringByReplacingOccurrencesOfString:@"_fb80" withString:@""];
-            items[i] = [NSURLQueryItem queryItemWithName:@"stp" value:value];
-        }
-    }
-    NSIndexSet *oldSize = [items indexesOfObjectsPassingTest:^BOOL(NSURLQueryItem *item, NSUInteger idx, BOOL *stop) {
-        return [item.name isEqualToString:@"cstp"] || [item.name isEqualToString:@"ctp"];
-    }];
-    [items removeObjectsAtIndexes:oldSize];
-    [items addObject:[NSURLQueryItem queryItemWithName:@"cstp" value:@"mx1152x2048"]];
-    [items addObject:[NSURLQueryItem queryItemWithName:@"ctp" value:@"s1152x2048"]];
-    components.queryItems = items;
-    return components.URL;
-}
-
 static void FBPStoryDumpPhotoProbe(id controller, id mediaView) {
     FBPStoryLog(@"PHOTO-PROBE controllerClass=%@ mediaClass=%@", NSStringFromClass([controller class]), NSStringFromClass([mediaView class]));
     unsigned int count=0; Method *methods=class_copyMethodList([mediaView class], &count); NSUInteger n=0;
@@ -171,6 +149,31 @@ static void FBPStoryLogObjectSourceGetters(id obj, NSString *label) {
     }
 }
 
+static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
+    if (!obj) return;
+    for (Class cls = [obj class]; cls && cls != NSObject.class; cls = class_getSuperclass(cls)) {
+        unsigned int count = 0;
+        Ivar *ivars = class_copyIvarList(cls, &count);
+        NSUInteger emitted = 0;
+        for (unsigned int i = 0; i < count && emitted < 60; i++) {
+            Ivar iv = ivars[i];
+            const char *encoding = ivar_getTypeEncoding(iv);
+            if (!encoding || encoding[0] != '@') continue;
+            NSString *name = [NSString stringWithUTF8String:ivar_getName(iv) ?: ""];
+            if (!FBPStoryInterestingSourceName(name)) continue;
+            id value = nil;
+            @try { value = object_getIvar(obj, iv); } @catch (__unused NSException *e) {}
+            if (!value) continue;
+            NSString *desc = [value description] ?: @"";
+            if (desc.length > 900) desc = [[desc substringToIndex:900] stringByAppendingString:@"…"];
+            FBPStoryLog(@"SOURCE-IVAR %@ ivar=%@ class=%@ value=%@",
+                        label, name, NSStringFromClass([value class]), desc);
+            emitted++;
+        }
+        free(ivars);
+    }
+}
+
 static void FBPStoryLogPhotoSourceCandidates(id mediaView) {
     NSArray<NSString *> *names = @[@"photoView", @"mediaViewLoadedInfo", @"media", @"model", @"content",
                                    @"imageURL", @"photoURL", @"mediaURL", @"sourceURL", @"URL"];
@@ -183,6 +186,7 @@ static void FBPStoryLogPhotoSourceCandidates(id mediaView) {
                     name, NSStringFromClass([value class]), desc);
         if ([name isEqualToString:@"photoView"] || [name isEqualToString:@"mediaViewLoadedInfo"]) {
             FBPStoryLogObjectSourceGetters(value, name);
+            FBPStoryLogObjectSourceIvars(value, name);
         }
     }
 }
@@ -541,11 +545,6 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
             return;
         }
         FBPStoryLog(@"photo fallback resolved FBWebPhotoView response URL=%@", url.absoluteString);
-        NSURL *hdVariant = FBPStoryHDVariantURL(url);
-        if (hdVariant) {
-            FBPStoryLog(@"photo fallback HD variant URL=%@", hdVariant.absoluteString);
-            url = hdVariant;
-        }
         FBPStoryLogPhotoSourceCandidates(mediaView);
         if ([mediaView isKindOfClass:UIView.class]) {
             gStoryRenderedImage = FBPStoryRenderMediaView((UIView *)mediaView);
