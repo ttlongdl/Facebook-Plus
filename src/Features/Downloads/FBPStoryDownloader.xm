@@ -93,6 +93,114 @@ static id FBPStoryObjectGetter(id obj, NSString *name) {
     }
 }
 
+
+static BOOL FBPStoryUnsignedGetter(id obj, NSString *name, unsigned long long *outValue) {
+    if (!obj || !name.length || !outValue) return NO;
+    SEL sel = NSSelectorFromString(name);
+    Method m = class_getInstanceMethod([obj class], sel);
+    if (!m || method_getNumberOfArguments(m) != 2) return NO;
+    char ret[32] = {0};
+    method_getReturnType(m, ret, sizeof(ret));
+    if (!(ret[0] == 'Q' || ret[0] == 'q' || ret[0] == 'I' || ret[0] == 'i' ||
+          ret[0] == 'L' || ret[0] == 'l' || ret[0] == 'S' || ret[0] == 's' ||
+          ret[0] == 'C' || ret[0] == 'c' || ret[0] == 'B')) return NO;
+    @try {
+        unsigned long long (*sendQ)(id, SEL) =
+            (unsigned long long (*)(id, SEL))objc_msgSend;
+        *outValue = sendQ(obj, sel);
+        return YES;
+    } @catch (__unused NSException *e) {
+        return NO;
+    }
+}
+
+static NSString *FBPStoryShortDescription(id value, NSUInteger limit) {
+    if (!value) return @"(null)";
+    NSString *desc = [value description] ?: @"";
+    if (desc.length > limit)
+        desc = [[desc substringToIndex:limit] stringByAppendingString:@"…"];
+    return desc;
+}
+
+static void FBPStoryDumpNetworkSpecifier(id specifier, NSString *context) {
+    if (!specifier) {
+        FBPStoryLog(@"SOURCE-112 SPEC context=%@ specifier=(null)", context);
+        return;
+    }
+
+    unsigned long long target = 0;
+    BOOL hasTarget = FBPStoryUnsignedGetter(specifier, @"targetImageFlag", &target);
+    id allInfoURLs = FBPStoryObjectGetter(specifier, @"allInfoURLsSortedByDescImageFlag");
+    id downloadNodes = FBPStoryObjectGetter(specifier, @"downloadNodes");
+
+    FBPStoryLog(@"SOURCE-112 SPEC context=%@ class=%@ targetImageFlag=%@ allInfoURLs=%@ downloadNodesClass=%@ count=%llu",
+                context,
+                NSStringFromClass([specifier class]),
+                hasTarget ? [NSString stringWithFormat:@"%llu", target] : @"(unreadable)",
+                FBPStoryShortDescription(allInfoURLs, 4000),
+                downloadNodes ? NSStringFromClass([downloadNodes class]) : @"(null)",
+                (unsigned long long)([downloadNodes respondsToSelector:@selector(count)] ? [downloadNodes count] : 0));
+
+    if ([allInfoURLs isKindOfClass:NSArray.class]) {
+        NSUInteger idx = 0;
+        for (id entry in (NSArray *)allInfoURLs) {
+            FBPStoryLog(@"SOURCE-112 INFOURL[%llu] class=%@ value=%@",
+                        (unsigned long long)idx++,
+                        NSStringFromClass([entry class]),
+                        FBPStoryShortDescription(entry, 3000));
+        }
+    } else if ([allInfoURLs isKindOfClass:NSDictionary.class]) {
+        for (id key in (NSDictionary *)allInfoURLs) {
+            id entry = [(NSDictionary *)allInfoURLs objectForKey:key];
+            FBPStoryLog(@"SOURCE-112 INFOURL key=%@ class=%@ value=%@",
+                        key, NSStringFromClass([entry class]),
+                        FBPStoryShortDescription(entry, 3000));
+        }
+    }
+
+    if (![downloadNodes conformsToProtocol:@protocol(NSFastEnumeration)]) return;
+    NSUInteger index = 0;
+    for (id node in downloadNodes) {
+        unsigned long long imageFlag = 0, desiredFlag = 0;
+        BOOL hasImageFlag = FBPStoryUnsignedGetter(node, @"imageFlag", &imageFlag);
+        BOOL hasDesiredFlag = FBPStoryUnsignedGetter(node, @"desiredImageFlag", &desiredFlag);
+        id url = FBPStoryObjectGetter(node, @"url");
+        if (!url) url = FBPStoryObjectGetter(node, @"URL");
+
+        FBPStoryLog(@"SOURCE-112 NODE[%llu] class=%@ imageFlag=%@ desiredImageFlag=%@ urlClass=%@ url=%@ desc=%@",
+                    (unsigned long long)index,
+                    NSStringFromClass([node class]),
+                    hasImageFlag ? [NSString stringWithFormat:@"%llu", imageFlag] : @"(unreadable)",
+                    hasDesiredFlag ? [NSString stringWithFormat:@"%llu", desiredFlag] : @"(unreadable)",
+                    url ? NSStringFromClass([url class]) : @"(null)",
+                    FBPStoryShortDescription(url, 3000),
+                    FBPStoryShortDescription(node, 3000));
+
+        // If Facebook renamed/hidden the URL getter, dump only object ivars on
+        // this tiny node object. This is deliberately narrow; no global scan.
+        for (Class cls = [node class]; cls && cls != NSObject.class; cls = class_getSuperclass(cls)) {
+            unsigned int ivarCount = 0;
+            Ivar *ivars = class_copyIvarList(cls, &ivarCount);
+            for (unsigned int i = 0; i < ivarCount && i < 40; i++) {
+                Ivar iv = ivars[i];
+                const char *type = ivar_getTypeEncoding(iv);
+                if (!type || type[0] != '@') continue;
+                id value = nil;
+                @try { value = object_getIvar(node, iv); }
+                @catch (__unused NSException *e) {}
+                if (!value) continue;
+                FBPStoryLog(@"SOURCE-112 NODE[%llu]-IVAR name=%s class=%@ value=%@",
+                            (unsigned long long)index,
+                            ivar_getName(iv) ?: "",
+                            NSStringFromClass([value class]),
+                            FBPStoryShortDescription(value, 3000));
+            }
+            free(ivars);
+        }
+        index++;
+    }
+}
+
 static void FBPStoryDiscoverPhotoPipelineClasses(void);
 
 static NSURL *FBPStoryResponseImageURLFromMediaView(id mediaView) {
@@ -1115,13 +1223,21 @@ static id FBPStorySpecifierForPhotoHook(id self, SEL _cmd,
                                  downloaderSessionFactory, userSession)
         : nil;
     id modelID = FBPStoryObjectGetter(photo, @"modelIdentifier");
-    id targetFlag = FBPStoryObjectGetter(result, @"targetImageFlag");
+    unsigned long long targetFlag = 0;
+    BOOL hasTargetFlag = FBPStoryUnsignedGetter(result, @"targetImageFlag", &targetFlag);
     id urls = FBPStoryObjectGetter(result, @"allInfoURLsSortedByDescImageFlag");
     FBPStoryLog(@"SOURCE-CALL specifierForPhoto photoClass=%@ modelID=%@ imageFlags=%llu current=%llu mode=%llu urlSearch=%d disableFetchFirst=%d resultClass=%@ target=%@ urls=%@",
                 NSStringFromClass([photo class]), modelID,
                 imageFlags, currentDisplayedImageFlag, downloadMode,
                 enableURLSearch, disableFetchFirst,
-                NSStringFromClass([result class]), targetFlag, urls);
+                NSStringFromClass([result class]),
+                hasTargetFlag ? [NSString stringWithFormat:@"%llu", targetFlag] : @"(unreadable)",
+                urls);
+    if (result && imageFlags == 512) {
+        NSString *context = [NSString stringWithFormat:@"specifierForPhoto modelID=%@ requested=%llu current=%llu",
+                             modelID, imageFlags, currentDisplayedImageFlag];
+        FBPStoryDumpNetworkSpecifier(result, context);
+    }
     return result;
 }
 
