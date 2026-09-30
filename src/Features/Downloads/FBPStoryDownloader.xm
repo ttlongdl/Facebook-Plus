@@ -283,6 +283,60 @@ static void FBPStoryLogObjectSourceIvars(id obj, NSString *label) {
                                     FBPStoryLogObjectSourceIvars(snacksMedia, @"FBMemPhoto.asFBSnacksMedia");
                                 }
 
+                                NSArray *imageFieldNames = @[@"image2048", @"image1286", @"image960", @"image720", @"image600"];
+                                NSMutableDictionary *seenImageObjects = [NSMutableDictionary dictionary];
+                                for (NSString *fieldName in imageFieldNames) {
+                                    id fieldImage = FBPStoryObjectGetter(innerValue, fieldName);
+                                    if (!fieldImage) {
+                                        FBPStoryLog(@"SOURCE-IMAGE-FIELD %@ unavailable", fieldName);
+                                        continue;
+                                    }
+                                    NSString *pointerKey = [NSString stringWithFormat:@"%p", fieldImage];
+                                    NSString *priorField = seenImageObjects[pointerKey];
+                                    FBPStoryLog(@"SOURCE-IMAGE-FIELD %@ ptr=%p class=%@ sameAs=%@ value=%@",
+                                                fieldName, fieldImage, NSStringFromClass([fieldImage class]),
+                                                priorField ?: @"none", [fieldImage description]);
+                                    if (!priorField) seenImageObjects[pointerKey] = fieldName;
+
+                                    for (Class fieldCls = [fieldImage class]; fieldCls && fieldCls != NSObject.class;
+                                         fieldCls = class_getSuperclass(fieldCls)) {
+                                        unsigned int methodCount = 0;
+                                        Method *methods = class_copyMethodList(fieldCls, &methodCount);
+                                        for (unsigned int mi = 0; mi < methodCount && mi < 1000; mi++) {
+                                            SEL sel = method_getName(methods[mi]);
+                                            NSString *name = NSStringFromSelector(sel);
+                                            NSString *lower = name.lowercaseString;
+                                            if ([lower containsString:@"url"] || [lower containsString:@"uri"] ||
+                                                [lower containsString:@"source"] || [lower containsString:@"encoding"] ||
+                                                [lower containsString:@"width"] || [lower containsString:@"height"] ||
+                                                [lower containsString:@"size"] || [lower containsString:@"dimension"] ||
+                                                [lower containsString:@"specifier"] || [lower containsString:@"image"]) {
+                                                FBPStoryLog(@"SOURCE-IMAGE-META %@ class=%@ method=%@ types=%s",
+                                                            fieldName, NSStringFromClass(fieldCls), name,
+                                                            method_getTypeEncoding(methods[mi]) ?: "");
+                                            }
+                                        }
+                                        free(methods);
+
+                                        unsigned int propCount = 0;
+                                        objc_property_t *props = class_copyPropertyList(fieldCls, &propCount);
+                                        for (unsigned int pi = 0; pi < propCount && pi < 500; pi++) {
+                                            NSString *name = [NSString stringWithUTF8String:property_getName(props[pi]) ?: ""];
+                                            NSString *lower = name.lowercaseString;
+                                            if ([lower containsString:@"url"] || [lower containsString:@"uri"] ||
+                                                [lower containsString:@"source"] || [lower containsString:@"encoding"] ||
+                                                [lower containsString:@"width"] || [lower containsString:@"height"] ||
+                                                [lower containsString:@"size"] || [lower containsString:@"dimension"] ||
+                                                [lower containsString:@"specifier"] || [lower containsString:@"image"]) {
+                                                FBPStoryLog(@"SOURCE-IMAGE-META %@ class=%@ property=%@ attrs=%s",
+                                                            fieldName, NSStringFromClass(fieldCls), name,
+                                                            property_getAttributes(props[pi]) ?: "");
+                                            }
+                                        }
+                                        free(props);
+                                    }
+                                }
+
                                 id image2048 = FBPStoryObjectGetter(innerValue, @"image2048");
                                 if (image2048) {
                                     NSString *imageLabel = @"FBMemPhoto.image2048";
