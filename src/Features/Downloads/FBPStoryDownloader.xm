@@ -109,6 +109,7 @@ static NSURL *FBPStoryResponseImageURLFromMediaView(id mediaView) {
 }
 
 static void FBPStoryDumpPhotoProbe(id controller, id mediaView) {
+    FBPStoryDiscoverPhotoPipelineClasses();
     FBPStoryLog(@"PHOTO-PROBE controllerClass=%@ mediaClass=%@", NSStringFromClass([controller class]), NSStringFromClass([mediaView class]));
     unsigned int count=0; Method *methods=class_copyMethodList([mediaView class], &count); NSUInteger n=0;
     for(unsigned int i=0;i<count && n<40;i++){ Method m=methods[i]; if(method_getNumberOfArguments(m)!=2) continue; char ret[16]={0}; method_getReturnType(m,ret,sizeof(ret)); if(ret[0]!='@') continue; NSString *s=NSStringFromSelector(method_getName(m)); NSString *l=s.lowercaseString; if(!([l containsString:@"image"]||[l containsString:@"photo"]||[l containsString:@"media"]||[l containsString:@"url"]||[l containsString:@"model"])) continue; id v=FBPStoryObjectGetter(mediaView,s); FBPStoryLog(@"PHOTO-PROBE getter %@ -> <%@> %@",s,v?NSStringFromClass([v class]):@"nil",[v description]); n++; } free(methods);
@@ -121,6 +122,64 @@ static BOOL FBPStoryInterestingSourceName(NSString *name) {
            [s containsString:@"media"] || [s containsString:@"url"] ||
            [s containsString:@"source"] || [s containsString:@"request"] ||
            [s containsString:@"model"] || [s containsString:@"content"];
+}
+
+static void FBPStoryDiscoverPhotoPipelineClasses(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        int total = objc_getClassList(NULL, 0);
+        if (total <= 0) {
+            FBPStoryLog(@"SOURCE-RUNTIME no classes");
+            return;
+        }
+        Class *classes = (__unsafe_unretained Class *)calloc((size_t)total, sizeof(Class));
+        if (!classes) return;
+        total = objc_getClassList(classes, total);
+        NSUInteger matchedClasses = 0;
+        for (int i = 0; i < total && matchedClasses < 160; i++) {
+            Class cls = classes[i];
+            NSString *className = NSStringFromClass(cls);
+            NSString *lowerClass = className.lowercaseString;
+            BOOL interestingClass =
+                [lowerClass containsString:@"webphoto"] ||
+                [lowerClass containsString:@"photoimageflag"] ||
+                [lowerClass containsString:@"imagestreamer"] ||
+                [lowerClass containsString:@"imagenetwork"] ||
+                ([lowerClass containsString:@"snacks"] && [lowerClass containsString:@"photo"]);
+            if (!interestingClass) continue;
+            matchedClasses++;
+            FBPStoryLog(@"SOURCE-RUNTIME-CLASS %@", className);
+
+            Class methodOwners[2] = { cls, object_getClass(cls) };
+            NSString *kinds[2] = { @"instance", @"class" };
+            for (NSUInteger kind = 0; kind < 2; kind++) {
+                unsigned int methodCount = 0;
+                Method *methods = class_copyMethodList(methodOwners[kind], &methodCount);
+                NSUInteger emitted = 0;
+                for (unsigned int mi = 0; mi < methodCount && emitted < 120; mi++) {
+                    NSString *selectorName = NSStringFromSelector(method_getName(methods[mi]));
+                    NSString *lower = selectorName.lowercaseString;
+                    BOOL interestingMethod =
+                        [lower containsString:@"specifier"] ||
+                        [lower containsString:@"imageflag"] ||
+                        [lower containsString:@"photo"] ||
+                        [lower containsString:@"size"] ||
+                        [lower containsString:@"source"] ||
+                        [lower containsString:@"stream"] ||
+                        [lower containsString:@"download"];
+                    if (!interestingMethod) continue;
+                    FBPStoryLog(@"SOURCE-RUNTIME-METHOD class=%@ kind=%@ selector=%@ types=%s",
+                                className, kinds[kind], selectorName,
+                                method_getTypeEncoding(methods[mi]) ?: "");
+                    emitted++;
+                }
+                free(methods);
+            }
+        }
+        FBPStoryLog(@"SOURCE-RUNTIME-END total=%d matched=%llu",
+                    total, (unsigned long long)matchedClasses);
+        free(classes);
+    });
 }
 
 static void FBPStoryLogObjectSourceGetters(id obj, NSString *label) {
