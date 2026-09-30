@@ -83,6 +83,13 @@ static id FBPStoryObjectGetter(id obj, NSString *name) {
     }
 }
 
+static void FBPStoryDumpPhotoProbe(id controller, id mediaView) {
+    FBPStoryLog(@"PHOTO-PROBE controllerClass=%@ mediaClass=%@", NSStringFromClass([controller class]), NSStringFromClass([mediaView class]));
+    unsigned int count=0; Method *methods=class_copyMethodList([mediaView class], &count); NSUInteger n=0;
+    for(unsigned int i=0;i<count && n<40;i++){ Method m=methods[i]; if(method_getNumberOfArguments(m)!=2) continue; char ret[16]={0}; method_getReturnType(m,ret,sizeof(ret)); if(ret[0]!='@') continue; NSString *s=NSStringFromSelector(method_getName(m)); NSString *l=s.lowercaseString; if(!([l containsString:@"image"]||[l containsString:@"photo"]||[l containsString:@"media"]||[l containsString:@"url"]||[l containsString:@"model"])) continue; id v=FBPStoryObjectGetter(mediaView,s); FBPStoryLog(@"PHOTO-PROBE getter %@ -> <%@> %@",s,v?NSStringFromClass([v class]):@"nil",[v description]); n++; } free(methods);
+    if([mediaView isKindOfClass:UIView.class]){ NSMutableArray *q=[NSMutableArray arrayWithObject:mediaView]; NSUInteger seen=0; while(q.count&&seen<80){ UIView *v=q.firstObject; [q removeObjectAtIndex:0]; NSString *x=@""; if([v isKindOfClass:UIImageView.class]){UIImage *im=((UIImageView*)v).image;x=[NSString stringWithFormat:@" image=%@ %.0fx%.0f",im?@"YES":@"NO",im.size.width,im.size.height];} FBPStoryLog(@"PHOTO-PROBE view <%@> frame=%@%@",NSStringFromClass(v.class),NSStringFromCGRect(v.frame),x); [q addObjectsFromArray:v.subviews]; seen++; }}
+}
+
 static BOOL FBPStoryControllerVisible(UIViewController *vc) {
     if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
     UIView *v = vc.view;
@@ -417,6 +424,7 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
 
     if (!url || ![url.scheme.lowercaseString hasPrefix:@"http"]) {
         FBPStoryLog(@"photo probe rejected: no direct HTTP media URL");
+        FBPStoryDumpPhotoProbe(controller, mediaView);
         return;
     }
 
