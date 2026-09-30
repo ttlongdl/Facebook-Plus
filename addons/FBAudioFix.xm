@@ -212,8 +212,6 @@ static void FBFinishTouch(UITouch *touch) {
                   sqrt(distanceSquared),
                   targetView ? NSStringFromClass([targetView class]) : @"(null)",
                   FBViewChain(targetView));
-            if (FBIsInNavigationBar(targetView)) {
-            }
         }
     } else {
         FBLog(@"GESTURE rejected phase=%ld duration=%.3f distance=%.1f",
