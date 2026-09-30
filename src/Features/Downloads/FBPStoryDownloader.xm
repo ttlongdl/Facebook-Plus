@@ -115,6 +115,40 @@ static void FBPStoryDumpPhotoProbe(id controller, id mediaView) {
     if([mediaView isKindOfClass:UIView.class]){ NSMutableArray *q=[NSMutableArray arrayWithObject:mediaView]; NSUInteger seen=0; while(q.count&&seen<80){ UIView *v=q.firstObject; [q removeObjectAtIndex:0]; NSString *x=@""; if([v isKindOfClass:UIImageView.class]){UIImage *im=((UIImageView*)v).image;x=[NSString stringWithFormat:@" image=%@ %.0fx%.0f",im?@"YES":@"NO",im.size.width,im.size.height];} FBPStoryLog(@"PHOTO-PROBE view <%@> frame=%@%@",NSStringFromClass(v.class),NSStringFromCGRect(v.frame),x); [q addObjectsFromArray:v.subviews]; seen++; }}
 }
 
+static BOOL FBPStoryInterestingSourceName(NSString *name) {
+    NSString *s = name.lowercaseString;
+    return [s containsString:@"image"] || [s containsString:@"photo"] ||
+           [s containsString:@"media"] || [s containsString:@"url"] ||
+           [s containsString:@"source"] || [s containsString:@"request"] ||
+           [s containsString:@"model"] || [s containsString:@"content"];
+}
+
+static void FBPStoryLogObjectSourceGetters(id obj, NSString *label) {
+    if (!obj) return;
+    for (Class cls = [obj class]; cls && cls != NSObject.class; cls = class_getSuperclass(cls)) {
+        unsigned int count = 0;
+        Method *methods = class_copyMethodList(cls, &count);
+        NSUInteger emitted = 0;
+        for (unsigned int i = 0; i < count && emitted < 50; i++) {
+            Method method = methods[i];
+            if (method_getNumberOfArguments(method) != 2) continue;
+            char ret[16] = {0};
+            method_getReturnType(method, ret, sizeof(ret));
+            if (ret[0] != '@') continue;
+            NSString *name = NSStringFromSelector(method_getName(method));
+            if (!FBPStoryInterestingSourceName(name)) continue;
+            id value = FBPStoryObjectGetter(obj, name);
+            if (!value) continue;
+            NSString *desc = [value description] ?: @"";
+            if (desc.length > 700) desc = [[desc substringToIndex:700] stringByAppendingString:@"…"];
+            FBPStoryLog(@"SOURCE-DEEP %@ getter=%@ class=%@ value=%@",
+                        label, name, NSStringFromClass([value class]), desc);
+            emitted++;
+        }
+        free(methods);
+    }
+}
+
 static void FBPStoryLogPhotoSourceCandidates(id mediaView) {
     NSArray<NSString *> *names = @[@"photoView", @"mediaViewLoadedInfo", @"media", @"model", @"content",
                                    @"imageURL", @"photoURL", @"mediaURL", @"sourceURL", @"URL"];
@@ -125,6 +159,9 @@ static void FBPStoryLogPhotoSourceCandidates(id mediaView) {
         if (desc.length > 500) desc = [[desc substringToIndex:500] stringByAppendingString:@"…"];
         FBPStoryLog(@"SOURCE-CANDIDATE getter=%@ class=%@ value=%@",
                     name, NSStringFromClass([value class]), desc);
+        if ([name isEqualToString:@"photoView"] || [name isEqualToString:@"mediaViewLoadedInfo"]) {
+            FBPStoryLogObjectSourceGetters(value, name);
+        }
     }
 }
 
