@@ -151,10 +151,20 @@ static NSString *const kCell = @"fbp.appicon.row";
     self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
 
     [self.tableView registerClass:FBPAppIconCell.class forCellReuseIdentifier:kCell];
+    // Match the Language screen: a plain custom text button avoids the grey
+    // system Done button background applied by the host navigation appearance.
+    UIButton *doneButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    [doneButton setTitle:([FBPL(@"appicon.default") isEqualToString:@"Mặc định"] ? @"Xong" : @"Done")
+              forState:UIControlStateNormal];
+    [doneButton setTitleColor:FBPTintColor() forState:UIControlStateNormal];
+    doneButton.titleLabel.font = FBPFont(16, UIFontWeightSemibold);
+    doneButton.backgroundColor = UIColor.clearColor;
+    doneButton.layer.cornerRadius = 0;
+    doneButton.contentEdgeInsets = UIEdgeInsetsMake(8, 10, 8, 10);
+    [doneButton addTarget:self action:@selector(closeTapped)
+         forControlEvents:UIControlEventTouchUpInside];
     self.navigationItem.rightBarButtonItem =
-        [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone
-                                                      target:self
-                                                      action:@selector(closeTapped)];
+        [[UIBarButtonItem alloc] initWithCustomView:doneButton];
     [self applyNavigationChrome];
 }
 
