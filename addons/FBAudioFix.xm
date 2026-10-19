@@ -28,7 +28,8 @@ static BOOL FBAudioURLLooksLikeReel(NSURL *url) {
           [host isEqualToString:@"fb.watch"] || [host isEqualToString:@"fbwat.ch"])) return NO;
     NSString *path = url.path.lowercaseString ?: @"";
     return [path containsString:@"/reel/"] || [path containsString:@"/reels/"] ||
-           [path containsString:@"/share/r/"] || [path containsString:@"/watch/"];
+           [path containsString:@"/share/r/"] || [path containsString:@"/watch/"] ||
+           [path containsString:@"/videos/"];
 }
 static BOOL hContinueUserActivity(id delegate, SEL cmd, UIApplication *app,
                                   NSUserActivity *activity, id restorationHandler) {
@@ -469,9 +470,10 @@ static void FBDidEnterBackground(NSNotification *note) {
 static void FBDidBecomeActive(NSNotification *note) {
     (void)note;
     NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
-    BOOL reclaim = gExclusiveBeforeResignActive && !gEnteredBackgroundAfterResign;
+    BOOL reclaim = gExclusiveBeforeResignActive;
     if (reclaim) {
         gResumeExclusiveIntentUntil = now + 2.0;
+        gLastConfirmedTap = now; // remove MixWithOthers on the first resumed Playback setter
     }
     FBLog(@"APP didBecomeActive exclusiveState=%@ reclaimExclusive=%@ window=%.1f",
           gAllowedExclusivePlayback ? @"YES" : @"NO",
