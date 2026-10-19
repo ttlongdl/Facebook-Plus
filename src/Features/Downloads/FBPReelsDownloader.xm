@@ -121,11 +121,13 @@ static void FBPHideOverlaysForWindow(UIWindow *window) {
         if (!overlay)
             continue;
 
-        if (!overlay.hidden)
+        // Only restore views that our feature actually changed.
+        // Facebook may intentionally hide an overlay for its own transitions.
+        if (!overlay.hidden) {
             overlay.hidden = YES;
-
-        FBPSetViewHiddenByUs(overlay, YES);
-        [gHiddenOverlays addObject:overlay];
+            FBPSetViewHiddenByUs(overlay, YES);
+            [gHiddenOverlays addObject:overlay];
+        }
     }
 }
 
@@ -144,11 +146,11 @@ static void FBPHideOverlayChildrenOf(UIView *container) {
                 containsString:@"ShortsViewerOverlay"])
             continue;
 
-        if (!sub.hidden)
+        if (!sub.hidden) {
             sub.hidden = YES;
-
-        FBPSetViewHiddenByUs(sub, YES);
-        [gHiddenOverlays addObject:sub];
+            FBPSetViewHiddenByUs(sub, YES);
+            [gHiddenOverlays addObject:sub];
+        }
     }
 }
 
@@ -160,8 +162,10 @@ static void FBPUnhideAllOverlays(void) {
     for (UIView *overlay in gHiddenOverlays.allObjects) {
         if (!overlay)
             continue;
-        FBPSetViewHiddenByUs(overlay, NO);
-        overlay.hidden = NO;
+        if (FBPViewHiddenByUs(overlay)) {
+            FBPSetViewHiddenByUs(overlay, NO);
+            overlay.hidden = NO;
+        }
     }
 
     [gHiddenOverlays removeAllObjects];
