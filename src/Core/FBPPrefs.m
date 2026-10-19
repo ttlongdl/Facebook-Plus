@@ -32,6 +32,7 @@ static NSString *const kSuiteName = @"com.shajon.fbplus";
         FBPKeyNoRecs           : @YES,
         FBPKeyNoPYMK           : @YES,
         FBPKeyNoReels          : @YES,
+        FBPKeyNoStories        : @YES,
         FBPKeyNoStoryPYMK      : @YES,
         FBPKeyNoThreads        : @YES,
         FBPKeyNoGroupSuggestions : @YES,
@@ -41,6 +42,7 @@ static NSString *const kSuiteName = @"com.shajon.fbplus";
         FBPKeyStoryDownloaderEnabled : @YES,
 
         FBPKeyReelsLike        : @YES,
+        FBPKeyReelsHideOverlay : @YES,
 
         FBPKeyAnonymousStories : @YES,
         FBPKeyNoAutoNext       : @YES,
@@ -52,7 +54,7 @@ static NSString *const kSuiteName = @"com.shajon.fbplus";
         FBPKeyLinksInSafari    : @YES,
 
         FBPKeyNotifyUpdates    : @YES,
-        FBPKeyAutoClearCache   : @NO,
+        FBPKeyAutoClearCache   : @YES,
 
         FBPKeyIntroduced       : @NO,
     };

@@ -13,6 +13,7 @@ NSString *const FBPKeyNoAds            = @"noAds";
 NSString *const FBPKeyNoRecs           = @"noRecs";
 NSString *const FBPKeyNoPYMK           = @"noPYMK";
 NSString *const FBPKeyNoReels          = @"noReels";
+NSString *const FBPKeyNoStories        = @"noStories";
 NSString *const FBPKeyNoStoryPYMK      = @"noStoryPYMK";
 NSString *const FBPKeyNoThreads        = @"noThreads";
 NSString *const FBPKeyNoGroupSuggestions = @"noGroupSuggestions";
@@ -22,6 +23,7 @@ NSString *const FBPKeyReelsDownloaderEnabled = @"reelsDownloaderEnabled";
 NSString *const FBPKeyStoryDownloaderEnabled = @"storyDownloaderEnabled";
 
 NSString *const FBPKeyReelsLike        = @"reelsLike";
+NSString *const FBPKeyReelsHideOverlay = @"reelsHideOverlay";
 
 NSString *const FBPKeyAnonymousStories = @"anonymousStories";
 NSString *const FBPKeyNoAutoNext       = @"noAutoNext";

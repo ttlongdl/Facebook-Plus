@@ -1,4 +1,4 @@
-TARGET := iphone:clang:latest:15.0
+TARGET := iphone:clang:latest:17.0
 # arm64 only. This targets iPhone 11 → latest, all sideloaded / re-signed: those
 # apps run in the arm64 slice even on A12+ (arm64e) devices — the arm64e slice is
 # reserved for Apple-signed platform binaries — so an injected arm64e slice would
@@ -9,6 +9,7 @@ INSTALL_TARGET_PROCESSES = Facebook
 # Set to 1 (or export in your environment) when building for a roothide
 # jailbreak, which needs the .jbroot loader-path indirection.
 THEOS_PACKAGE_SCHEME ?= rootless
+THEOS ?= $(HOME)/theos
 
 include $(THEOS)/makefiles/common.mk
 
@@ -18,7 +19,6 @@ FacebookPlus_FILES = \
 	src/Core/FBPlus.m \
 	src/Core/FBPPrefs.m \
 	src/Core/FBPResources.m \
-	src/Core/FBPDiagnostics.m \
 	src/Core/FBPEntry.xm \
 	src/UI/Toast/FBPToastWindow.m \
 	src/UI/Toast/FBPToastView.m \
@@ -28,7 +28,6 @@ FacebookPlus_FILES = \
 	src/UI/Sheet/FBPDetentPresentationController.m \
 	src/Settings/FBPSettingsController.m \
 	src/Features/Onboarding/FBPWelcomeController.m \
-	src/Features/Diagnostics/FBPDiagnosticsController.m \
 	src/Features/AppIcons/FBPAppIconController.m \
 	src/Features/Language/FBPLanguageController.m \
 	src/Features/Feed/FBPFeedHooks.xm \
@@ -36,11 +35,10 @@ FacebookPlus_FILES = \
 	src/Features/LikeConfirmation/FBPConfirmHooks.xm \
 	src/Features/AppChrome/FBPChromeHooks.xm \
 	src/Features/OLED/FBPOLEDHooks.xm \
-	src/Features/Menu/FBPMenuHooks.xm \
 	src/Features/Downloads/FBPReelsDownloader.xm \
 	src/Features/Downloads/FBPStoryDownloader.xm \
 	src/Features/Links/FBPLinkHooks.xm \
-	addons/DeepLinkBridge.xm \
+	src/Features/Links/FBPLinkBridge.xm \
 	addons/FBAudioFix.xm \
 	src/Features/Update/FBPUpdateController.m \
 	src/Features/Update/FBPUpdateChecker.m \
@@ -52,10 +50,9 @@ FacebookPlus_FILES = \
 
 # The tweak's own version, read from control, exposed to the code as FBP_VERSION
 # (an NSString literal) so the update checker can compare against GitHub releases.
-FBP_VERSION := $(shell awk -F': ' '/^Version:/{print $2; exit}' control)
+FBP_VERSION := $(shell awk -F': ' '/^Version:/{print $$2; exit}' control)
 
-# rootless.h links libroot. Enable it only for an actual rootless jailbreak
-# package; rootful and sideload builds must remain free of libroot dependencies.
+# rootless.h may link libroot: never enable for rootful/sideload builds.
 ifeq ($(THEOS_PACKAGE_SCHEME),rootless)
 FBP_USE_ROOTLESS_PATHS := 1
 else
@@ -66,7 +63,7 @@ FacebookPlus_CFLAGS  = -fobjc-arc -Wno-deprecated-declarations \
 	-DFBP_VERSION='@"$(FBP_VERSION)"' \
 	-DFBP_USE_ROOTLESS_PATHS=$(FBP_USE_ROOTLESS_PATHS) \
 	-Isrc/Core -Isrc/UI/Toast -Isrc/UI/Sheet -Isrc/Settings \
-	-Isrc/Features/Onboarding -Isrc/Features/Diagnostics \
+	-Isrc/Features/Onboarding \
 	-Isrc/Features/AppIcons -Isrc/Features/Language \
 	-Isrc/Features/Update -Isrc/PluginsInject
 FacebookPlus_FRAMEWORKS = UIKit Foundation Photos QuartzCore CoreGraphics AVFoundation CoreMedia Security
@@ -78,8 +75,17 @@ include $(THEOS_MAKE_PATH)/aggregate.mk
 
 # Editor support. Without a compilation database, clangd and the VS Code C/C++
 # extension cannot find the iOS SDK and every Foundation type reads as
-# "Unknown type name". bear records the flags theos actually used, so this needs
-# a clean build to see every file.
+# "Unknown type name".
+#
+# We cannot let bear *intercept* the build: theos compiles with the Xcode
+# toolchain's Apple-signed clang, and macOS strips DYLD_INSERT_LIBRARIES (bear's
+# interception mechanism) from hardened-runtime Apple binaries, so `bear -- make`
+# only ever records an empty "[]". Instead we use bear's `parse-sh`, which reads
+# theos's own dry-run (`make -n`) and turns each compile into a database entry
+# with the real flags — no interception, works on any macOS. theos wraps every
+# compile in a `( … )` subshell that parse-sh would skip, so the sed first
+# unwraps it to a bare command. Logos .xm files appear as their preprocessed
+# .theos/obj/…/<name>.xm.mm; editing the original .xm is covered by .clangd above.
 .PHONY: compile-commands
 compile-commands:
 	@command -v bear >/dev/null 2>&1 || { \
@@ -88,12 +94,47 @@ compile-commands:
 		echo "       macOS:         brew install bear"; \
 		exit 1; \
 	}
-	@if [ -f .clangd.template ]; then \
-		echo "==> Generating .clangd from template…"; \
-		sed "s|@@THEOS@@|$(THEOS)|g" .clangd.template > .clangd; \
-		rm -f .clangd.template; \
-	fi
+	@echo "==> Generating .clangd…"
+	@sdk=$$(ls -d "$(THEOS)"/sdks/iPhoneOS*.sdk 2>/dev/null | sort -V | tail -1); \
+	if [ -z "$$sdk" ]; then \
+		echo "error: no iPhoneOS SDK found under $(THEOS)/sdks"; exit 1; \
+	fi; \
+	sdkver=$$(basename "$$sdk" .sdk | sed 's/^iPhoneOS//'); \
+	{ \
+		echo "CompileFlags:"; \
+		echo "  Add:"; \
+		echo "    - -target"; \
+		echo "    - arm64-apple-ios$$sdkver"; \
+		echo "    - -isysroot"; \
+		echo "    - $$sdk"; \
+		echo "    - -I$(THEOS)/include"; \
+		echo "    - -I$(THEOS)/include/iphone"; \
+		echo "    - -I$(THEOS)/vendor/include"; \
+		echo "    - -I$(THEOS)/include/_fallback"; \
+		echo "    - -F$$sdk/System/Library/Frameworks"; \
+		echo "    - -F$$sdk/System/Library/PrivateFrameworks"; \
+		echo "    - -Isrc/Core"; \
+		echo "    - -Isrc/UI/Toast"; \
+		echo "    - -Isrc/UI/Sheet"; \
+		echo "    - -Isrc/Settings"; \
+		echo "    - -Isrc/Features/Onboarding"; \
+		echo "    - -Isrc/Features/AppIcons"; \
+		echo "    - -Isrc/Features/Language"; \
+		echo "    - -Isrc/Features/Update"; \
+		echo "    - -Isrc/PluginsInject"; \
+		echo "    - -DTARGET_IPHONE=1"; \
+		echo "    - -DDEBUG"; \
+		echo "    - -fobjc-arc"; \
+		echo "    - -Wno-deprecated-declarations"; \
+		echo ""; \
+		echo "Diagnostics:"; \
+		echo "  Suppress:"; \
+		echo "    - unknown_type_name"; \
+		echo "    - undeclared_var_use"; \
+		echo "    - duplicate_decl_context"; \
+	} > .clangd
 	@echo "==> Recording compile commands with bear…"
 	@$(MAKE) clean >/dev/null
-	@bear -- $(MAKE) >/dev/null
+	@$(MAKE) -n | sed -E 's/.*set -o pipefail; \(//; s/\)[[:space:]]*$$//' \
+		| bear parse-sh -o compile_commands.json 2>/dev/null
 	@echo "==> Wrote compile_commands.json"

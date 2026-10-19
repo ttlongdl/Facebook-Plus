@@ -18,8 +18,7 @@ static NSString *const kBundleName = @"FacebookPlus.bundle";
         NSMutableArray<NSString *> *candidates = [NSMutableArray array];
 
 #if FBP_USE_ROOTLESS_PATHS
-        // Only jailbreak rootless builds use libroot path translation. Rootful and
-        // sideload builds deliberately avoid rootless.h so their Mach-O stays libroot-free.
+        // Rootless / roothide: the real path is prefixed at build time.
         [candidates addObject:ROOT_PATH_NS(@"/Library/Application Support/FacebookPlus.bundle")];
 #endif
         [candidates addObject:@"/var/jb/Library/Application Support/FacebookPlus.bundle"];

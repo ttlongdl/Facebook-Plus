@@ -72,21 +72,6 @@ build_scheme() {
 		return 1
 	fi
 
-	# Inspect the freshly linked tweak before the next scheme's make clean. A
-	# rootful/sideload-compatible binary must never carry libroot.
-	local dylib
-	dylib="$(find .theos/obj -type f -name 'FacebookPlus.dylib' -print -quit || true)"
-	if [ -z "${dylib}" ]; then
-		echo "error: FacebookPlus.dylib not found after ${label} build" >&2
-		return 1
-	fi
-	echo "==> ${label} Mach-O dependencies:"
-	otool -L "${dylib}"
-	if [ "${label}" = "rootfull" ] && otool -L "${dylib}" | grep -q 'libroot'; then
-		echo "error: rootfull FacebookPlus.dylib unexpectedly links libroot" >&2
-		return 1
-	fi
-
 	mv -f "${built}" "${out}"
 	echo "==> ${label}: ${out}"
 }
@@ -102,12 +87,12 @@ done
 echo "==> Built package(s):"
 ls -1 packages/Facebook-Plus-v${VERSION}-*.deb
 
-# Inject into the IPA only when one is provided. Use the libroot-free rootfull
-# binary as the sideload payload; cyan handles Substrate normalization/embedding.
-DEB_INJECT="packages/Facebook-Plus-v${VERSION}-rootfull.deb"
+# Inject into the IPA only when one is provided. The rootless build is used for
+# sideloading, since cyan re-signs and rewrites the dylib's load path anyway.
+DEB_INJECT="packages/Facebook-Plus-v${VERSION}-rootless.deb"
 if [ -f "$IPA_IN" ]; then
 	if [ ! -f "$DEB_INJECT" ]; then
-		echo "==> $DEB_INJECT not built (rootfull not in SCHEMES) — skipping injection."
+		echo "==> $DEB_INJECT not built (rootless not in SCHEMES) — skipping injection."
 		exit 0
 	fi
 	if ! command -v cyan >/dev/null 2>&1; then
@@ -117,7 +102,7 @@ if [ -f "$IPA_IN" ]; then
 	fi
 
 	# Name the injected IPA after the Facebook build it targets, read from the
-	# IPA's own Info.plist (the rootfull/libroot-free build is what cyan injects).
+	# IPA's own Info.plist (the rootless build is what cyan injects).
 	FB_VERSION="$(python3 scripts/ipa_version.py "$IPA_IN")"
 	IPA_OUT="packages/Facebook-Plus-v${FB_VERSION}-rootless.ipa"
 
@@ -145,21 +130,22 @@ if [ -f "$IPA_IN" ]; then
 	MERGE_ARGS=()
 	if [ -n "$ICON_MERGE" ]; then MERGE_ARGS=(-l "$ICON_MERGE"); fi
 
-	# Optional bundle-id override. When BUNDLE_ID is set, cyan rewrites the app
-	# identifier; FBPEntry is bundle-id-agnostic so the tweak still activates.
+	# Optional bundle-id override. When BUNDLE_ID is set (e.g. by the build-ipa
+	# GitHub Action), cyan rewrites the app's CFBundleIdentifier. The tweak is
+	# bundle-id-agnostic (see FBPEntry.xm), so it still activates under the new id.
+	# Left empty, the IPA keeps Facebook's own bundle id.
 	RENAME_ARGS=()
 	if [ -n "${BUNDLE_ID:-}" ]; then RENAME_ARGS+=(-b "$BUNDLE_ID"); fi
 
 	# Safari web extensions bundled into the app's PlugIns (e.g. "Open in
 	# Facebook", which reopens facebook.com links from Safari in the app). Each
 	# is built from source under OpenInFacebookSafariExtension/*/Makefile; cyan
-	# then places the resulting .appex under PlugIns. Final certificate signing is
-	# intentionally left to Feather/SideStore/the downstream signer.
+	# then places the resulting .appex under PlugIns and fakesigns it (-s below).
 	PLUGINS=()
 	shopt -s nullglob
 	for ext_mk in OpenInFacebookSafariExtension/*/Makefile; do
 		ext_dir="$(dirname "$ext_mk")"
-		echo "==> Building Safari web extension in $ext_dir…"
+		echo "==> Building Safari web extension in ${ext_dir}…"
 		make -C "$ext_dir" FINALPACKAGE=1 >/dev/null
 		# Only the final bundle at .theos/obj/*.appex carries the resources and
 		# Info.plist; the per-arch intermediates under obj/<arch>/ hold just the
@@ -177,7 +163,15 @@ if [ -f "$IPA_IN" ]; then
 	shopt -u nullglob
 
 	echo "==> Injecting $DEB_INJECT (+ icons${PLUGINS:+ + ${#PLUGINS[@]} extension(s)}) into $IPA_IN with cyan…"
-	cyan -i "$IPA_IN" -o "$IPA_OUT" -f "$DEB_INJECT" "${LOGOS[@]}" "${PLUGINS[@]}" "${MERGE_ARGS[@]}" "${RENAME_ARGS[@]}" -uwgq
+	# The "${arr[@]+"${arr[@]}"}" form expands to nothing when the array is empty,
+	# instead of tripping `set -u` on bash < 4.4 (the macOS runner's bash), where a
+	# plain "${arr[@]}" on an empty array is treated as an unbound variable.
+	cyan -i "$IPA_IN" -o "$IPA_OUT" -f "$DEB_INJECT" \
+		"${LOGOS[@]+"${LOGOS[@]}"}" \
+		"${PLUGINS[@]+"${PLUGINS[@]}"}" \
+		"${MERGE_ARGS[@]+"${MERGE_ARGS[@]}"}" \
+		"${RENAME_ARGS[@]+"${RENAME_ARGS[@]}"}" \
+		-uwsgq
 
 	echo "==> Done. Injected IPA: $IPA_OUT"
 else

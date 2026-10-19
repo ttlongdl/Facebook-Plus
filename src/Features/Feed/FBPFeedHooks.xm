@@ -7,7 +7,6 @@
 
 #import "FBPlus.h"
 #import "FBPPrefs.h"
-#import "FBPDiagnostics.h"
 #import "FBPHeaders.h"
 
 #import <objc/message.h>
@@ -25,6 +24,7 @@ static NSDictionary<NSString *, NSString *> *FBPCategoryMap(void) {
             @"ENGAGEMENT"    : FBPKeyNoRecs,
             @"ENGAGEMENT_QP" : FBPKeyNoRecs,
             @"FB_SHORTS"     : FBPKeyNoReels,
+            @"MULTI_FB_STORIES_TRAY" : FBPKeyNoStories,
             @"PYMK_STORY"    : FBPKeyNoStoryPYMK,
             @"PYMK"          : FBPKeyNoPYMK,
         };
@@ -133,7 +133,6 @@ static BOOL FBPShouldFilterModel(id model) {
     }
 
     if (FBPEnabled(FBPKeyNoThreads) && FBPIsThreadsUnit(model)) {
-        [FBPDiagnostics.shared recordEvent:@"feed: threads promo hidden"];
         return YES;
     }
 
@@ -153,6 +152,15 @@ static BOOL FBPShouldFilterModel(id model) {
     if (FBPEnabled(FBPKeyNoSuggestedPages)) {
         NSString *className = NSStringFromClass([model class]);
         if ([className containsString:@"PagesYouMayLike"]) return YES;
+    }
+
+    // A single ephemeral story shown inline in the feed (its own card, distinct
+    // from the horizontal tray). It arrives as FBMemStoriesSingleBucketInline
+    // ViewerFeedUnit under an ORGANIC edge, so it is matched by class name rather
+    // than category. Gated by the same Stories toggle as the tray.
+    if (FBPEnabled(FBPKeyNoStories)) {
+        NSString *className = NSStringFromClass([model class]);
+        if ([className containsString:@"SingleBucketInlineViewer"]) return YES;
     }
 
     // The story-tray PYMK bucket is distinct from the feed-level one.
@@ -207,10 +215,8 @@ void FBPInitFeedHooks(void) {
 
     if ([model instancesRespondToSelector:@selector(initWithFBPandoTree:)]) {
         FBP_ONCE(gFeed) { %init(FBPFeed); }
-        [FBPDiagnostics.shared recordGroup:@"FBPFeed" installed:YES detail:nil];
     }
     if ([model instancesRespondToSelector:@selector(initWithFBTree:)]) {
         FBP_ONCE(gFeedLegacy) { %init(FBPFeedLegacy); }
-        [FBPDiagnostics.shared recordGroup:@"FBPFeedLegacy" installed:YES detail:nil];
     }
 }

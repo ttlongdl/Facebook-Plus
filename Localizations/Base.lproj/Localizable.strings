@@ -1,12 +1,11 @@
-/* Facebook Plus — English. Auto-generated from test/gen_strings.py.
-   Keep translations in sync via that script; keys match every other .lproj. */
-
 "settings.subtitle" = "Tweak Preferences";
 "row.noads.title" = "Remove Ads";
 "row.norecs.title" = "Remove Recommendations";
 "row.norecs.desc" = "Hides algorithmically suggested posts.";
 "row.nopymk.title" = "Remove People You May Know";
 "row.noreels.title" = "Remove Reels Carousel";
+"row.nostories.title" = "Remove Stories";
+"row.nostories.desc" = "Hides the Stories row and single story cards from the feed.";
 "row.nothreads.title" = "Remove Threads Promo";
 "row.nothreads.desc" = "Hides the “discover new threads” card.";
 "row.nogroups.title" = "Remove Group Suggestions";
@@ -15,13 +14,13 @@
 "row.nosuggestedpages.desc" = "Hides the “suggested pages for you” units.";
 "row.feedlike.title" = "Confirm Post Likes";
 "row.feedlike.desc" = "Asks before a like is sent.";
-
 "row.downloadreels.title" = "Download Reels";
 "row.downloadreels.desc" = "Show the download button while viewing Reels.";
 "row.downloadstories.title" = "Download Stories";
 "row.downloadstories.desc" = "Show the download button while viewing Stories.";
-
 "row.reelslike.title" = "Confirm Reels Likes";
+"row.hideoverlay.title" = "Hide Overlay Toggle";
+"row.hideoverlay.desc" = "Add an eye button to Reels that hides all the on-screen chrome — likes, comments, share, caption — leaving just the video.";
 "row.anonstories.title" = "Watch Stories Anonymously";
 "row.anonstories.desc" = "View stories without sending a read receipt.";
 "row.noautonext.title" = "Disable Auto-Advance";
@@ -33,8 +32,6 @@
 "row.appicon.desc" = "Choose an alternate app icon.";
 "row.autoclear.title" = "Clear Cache on Launch";
 "row.clearcache.title" = "Clear Cache Now";
-"row.diagnostics.title" = "Diagnostics";
-"row.diagnostics.desc" = "See which features are active.";
 "row.checkupdate.title" = "Check for Update";
 "row.checkupdate.desc" = "See if a newer version is available.";
 "row.welcome.title" = "Show Welcome Screen";
@@ -54,8 +51,6 @@
 "appicon.error.failed" = "The icon could not be changed.";
 "common.cancel" = "Cancel";
 "common.ok" = "OK";
-
-/* Downloads — runtime messages */
 "download.appName" = "Facebook Plus";
 "download.error.unknown" = "Unknown error";
 "download.story.saved" = "Saved to Photos";
@@ -71,8 +66,7 @@
 "download.reel.httpError" = "Facebook CDN returned HTTP %ld.";
 "download.reel.tmpFailed" = "Couldn’t create the temporary video file.";
 "download.reel.noLink" = "Couldn’t get this video’s link.";
-
-/* Update screen */
+"reels.hideOverlay.a11y" = "Hide Reel overlay";
 "update.title" = "Update Available";
 "update.subtitle" = "Version %@ is now available.";
 "update.whatsnew" = "What's New";

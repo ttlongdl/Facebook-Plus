@@ -9,41 +9,12 @@
 
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square"></a>
-    <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2015.0%2B-lightgrey.svg?style=flat-square">
-    <img alt="Version" src="https://img.shields.io/badge/Fork%20Version-1.0.1--8-success.svg?style=flat-square">
+    <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2017.0%2B-lightgrey.svg?style=flat-square">
+    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.1-success.svg?style=flat-square">
   </p>
 </div>
 
 ---
-
-## 🍴 About this fork
-
-This repository is a **community fork of [SHAJON-404/Facebook-Plus](https://github.com/SHAJON-404/Facebook-Plus)**. The original Facebook Plus project, core tweak, and upstream feature work are by **SHAJON-404 and its contributors**.
-
-This fork is **not the official/upstream Facebook Plus repository**. It tracks upstream while maintaining additional integration work focused on sideloading and local add-ons, including DeepLinkBridge, FBAudioFix, certificate-safe/libroot-free packaging, and the companion IPA patching workflow.
-
-If you want the original project or upstream development, use **[SHAJON-404/Facebook-Plus](https://github.com/SHAJON-404/Facebook-Plus)**. Fork-specific changes are documented below so they can be clearly distinguished from upstream work.
-
-> This fork keeps upstream attribution and GPLv3 licensing. Fork-specific additions should not be interpreted as features or support commitments from the upstream maintainer.
-
----
-
-## 🔧 ttlongdl Fork — Local Add-ons
-
-This fork tracks **SHAJON-404/Facebook-Plus** upstream and keeps local changes isolated so upstream updates can be synced with minimal conflicts. The current fork release is **1.0.1-9**: upstream **1.0.1** plus the local add-on revision.
-
-### Local additions
-
-- **DeepLinkBridge** — `addons/DeepLinkBridge.xm` restores exact Facebook link routing for sideloaded builds. It accepts the fork's bridge route (`fb://fbbridge/open?url=...`) and forwards the original Facebook HTTPS URL into Facebook through its browsing-web `NSUserActivity` handler, allowing a Reel/post/photo link to open at the intended destination instead of falling back to Home.
-- **FBAudioFix** — `addons/FBAudioFix.xm` reduces unwanted Facebook audio-session takeovers during passive browsing while preserving intentional Facebook media playback. The add-on is compiled directly into `FacebookPlus.dylib`; no separate FBAudioFix dylib is required in the integrated build.
-- **Open in Facebook Safari Extension** — `OpenInFacebookSafariExtension/` is the fork's Safari web extension for sideloaded Facebook. It catches supported Facebook links in Safari and hands them to DeepLinkBridge. The extension is built as `OpenInFacebookSafariExtension.appex` when producing a sideloaded IPA.
-- **Sideload build + Injection export** — GitHub Actions builds rootless/rootfull `.deb` packages. The injection artifact is exported from the libroot-free rootfull build for certificate-safe sideload/manual IPA workflows.
-
-> **External-link behavior in 1.0.1-9:** DeepLinkBridge now signals a short external-navigation window to FBAudioFix. If Facebook actually requests playback while resolving that destination, media is allowed to take over background audio; non-media destinations keep background audio playing. Some complex shared/group links may still resolve to the group/feed rather than the exact post, and links kept inside third-party in-app browsers may bypass the Safari extension entirely.
-
-### Versioning
-
-Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `1.0.1` + the first local add-on revision is `1.0.1-9`; addon-only changes increment the suffix (the current tested revision is `1.0.1-9`). When upstream moves to a new version, the local suffix starts again at `-1`.
 
 ## ✨ Features
 
@@ -65,7 +36,7 @@ Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `
     </tr>
     <tr>
       <td nowrap>📖 <b>Stories</b></td>
-      <td>Watch stories anonymously (Ghost Mode)<br>Disable auto-advance<br>Hide Story Suggestions<br> Save <b>Stories</b> (video & photo) to Photos — includes resilient video capture for current Story playback variants</td>
+      <td>Watch stories anonymously (Ghost Mode)<br>Disable auto-advance<br>Hide Story Suggestions<br> Save <b>Stories</b> (video & photo) to Photos</td>
     </tr>
     <tr>
       <td nowrap>🧭 <b>Links</b></td>
@@ -73,7 +44,7 @@ Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `
     </tr>
     <tr>
       <td nowrap>🎨 <b>Appearance</b></td>
-      <td><b>OLED Dark Mode</b> (True black)<br>Custom App-Icon Picker (Seamless integration with <code>CFBundleAlternateIcons</code>)</td>
+      <td><b>OLED Dark Mode</b> (True black)<br>Custom App-Icon Picker</td>
     </tr>
     <tr>
       <td nowrap>🔔 <b>Updates</b></td>
@@ -86,34 +57,56 @@ Fork releases use `<upstream-version>-<addon-revision>`. For example, upstream `
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Roadmap & Credits
 
-Planned upstream features and fixes:
-
-**Feed & Content**
-- [ ] Hide the **Reels overlay** (comment/like/share controls layered over Reels)
-- [ ] Hide **Stories** row from the main feed
-- [ ] Hide **ads on Facebook Marketplace**
-
-**Downloads**
-- [ ] **Multiple-quality** download picker for Reels & videos
-
-**Appearance**
-- [ ] Enhance **OLED Mode** — restore the missing post divider
-- [ ] Fix the unwanted box rendered beside the app-icon image
-
-**Navigation**
-- [ ] Remove the **“Also from Meta”** section from the left sidebar
+Planned features and fixes, together with the project's provenance and credits,
+are documented in **[ROADMAP_AND_CREDITS.md](ROADMAP_AND_CREDITS.md)**.
+Contributions and suggestions are welcome — open an issue or a pull request.
 
 ---
 
-## 🚀 Installation / Sideload IPA
+## 🚀 Installation
 
-Jailbreak users can install the appropriate rootless/rootfull package from **[Releases](../../releases)**.
+Download the pre-built `.ipa` file from the **[Releases](../../releases)** section and install it on your device using **Feather**, **Ksing**, or any other sideloading tool of your choice.
 
-For a sideloaded Facebook IPA, use the companion **[Facebook IPA Patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher)**. Fork that repository, open **Actions → Build Facebook Plus Plus IPA**, supply a direct-download URL to your own clean/decrypted Facebook IPA, and let the workflow build and verify the patched IPA. Sign the resulting IPA with your own sideloading method/certificate (for example Feather or SideStore).
+## ⚡ Build your own IPA with GitHub Actions
 
-The patcher does **not** redistribute a clean Facebook IPA.
+No Mac required. The **Build Facebook Plus (.ipa)** workflow builds the tweak from
+source and injects it into a decrypted Facebook IPA that **you** provide, then
+publishes the result as a draft release on your fork.
+
+> [!IMPORTANT]
+> You must supply your own **decrypted** Facebook `.ipa`. We cannot distribute one
+> for legal reasons.
+
+**First time only:**
+
+1. **Fork** this repository (top-right **Fork** button).
+2. On your fork, open the **Actions** tab and click **I understand my workflows, go ahead and enable them**.
+
+**To build:**
+
+1. If your fork is behind, click **Sync fork → Update branch**.
+2. Go to **Actions → Build Facebook Plus (.ipa)**.
+3. Click **Run workflow** on the right.
+4. Fill in the inputs:
+   - **Direct download URL to the decrypted Facebook IPA** — upload your decrypted
+     `.ipa` to [**filebin.net**](https://filebin.net) and paste the **direct
+     download link** to the file. filebin is the recommended host and the one this
+     workflow has been tested with. A link to a *web page* instead of the file
+     itself will fail validation.
+   - **Bundle identifier** *(optional)* — leave blank to keep `com.facebook.Facebook`.
+     Set a custom id to install alongside the stock app. The tweak is
+     bundle-id-agnostic, so it activates under whatever id you choose — no other
+     change needed.
+5. Click **Run workflow** and wait for it to finish (≈10–15 min).
+6. Download the IPA from your fork's **Releases** section. The release is created as
+   a **draft** — open it, review, and publish. (If you don't see Releases, append
+   `/releases` to your fork's URL, e.g. `github.com/<you>/Facebook-Plus/releases`.)
+
+The workflow reuses [`build.sh`](build.sh), so your IPA gets the exact same
+injection as a local build — the tweak, the custom app-icons, and the bundled
+**Open in Facebook** Safari extension, all fakesigned for sideloading.
 
 ## 🛠️ Building from Source & Automated Injection
 
@@ -121,7 +114,7 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
 
 1. **Clone the repository** (including submodules):
    ```bash
-   git clone --recursive https://github.com/ttlongdl/Facebook-Plus.git
+   git clone --recursive https://github.com/SHAJON-404/Facebook-Plus.git
    cd Facebook-Plus
    ```
 
@@ -145,27 +138,27 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
      | `rootless` | `Facebook-Plus-v<version>-rootless.deb` |
      | `rootfull` | `Facebook-Plus-v<version>-rootfull.deb` |
 
-   - If a decrypted `.ipa` is present, injects the **rootfull, libroot-free** build into it with
-     `cyan` and writes `packages/Facebook-Plus-v<facebook-version>-sideload.ipa`.
+   - If a decrypted `.ipa` is present, injects the **rootless** build into it with
+     `cyan` and writes `packages/Facebook-Plus-v<facebook-version>-rootless.ipa`.
      The same `cyan` run also:
      - builds every Safari web extension under `OpenInFacebookSafariExtension/`
        from source and injects the resulting `.appex` into the app's `PlugIns/`;
      - merges any custom app icons (`fbplus_*.png` in `resources/logo/`) into
        `CFBundleAlternateIcons` via `scripts/icon_plist.py`, preserving
        Facebook's native icons;
-     - leaves final certificate signing to the downstream sideloading/signing tool.
+     - fakesigns every injected binary for sideloading.
 
 
 <details>
 <summary><b>Code Editor Setup</b></summary>
 
-Theos does not emit a compilation database by default, causing editors to fail at finding the iOS SDK. You can generate one using [`bear`](https://github.com/rizsotto/Bear):
+Theos does not emit a compilation database by default, causing editors to fail at finding the iOS SDK. Generate one with [`bear`](https://github.com/rizsotto/Bear):
 
 ```bash
 make compile-commands
 ```
 
-This generates `compile_commands.json`. Re-run this after adding new source files. Note: Logos `.xm` files cannot be fully parsed by clang, so `.clangd` suppresses false diagnostics while ensuring they compile correctly.
+This writes a per-machine `.clangd` (with your theos path and SDK baked in) and a `compile_commands.json`. The database is produced with `bear parse-sh` from theos's own dry-run (`make -n`) rather than by intercepting the build, because macOS strips the interception mechanism (`DYLD_INSERT_LIBRARIES`) from the Xcode toolchain's Apple-signed clang, leaving a plain `bear -- make` empty. Re-run it after adding new source files. Note: Logos `.xm` files cannot be fully parsed by clang, so `.clangd` suppresses false diagnostics while ensuring they compile correctly.
 
 </details>
 
@@ -174,7 +167,6 @@ This generates `compile_commands.json`. Re-run this after adding new source file
 ## 🏗️ Project Architecture
 
 ```text
-├── addons              # ttlongdl local add-ons (DeepLinkBridge, FBAudioFix)
 ├── Localizations       # Translations (ar, bn, de, es, fr, hi, id, it, ja, ko, etc.)
 ├── OpenInFacebookSafariExtension  # Safari web extension built into PlugIns ("Open in Facebook")
 ├── resources           # Assets (App icons, SVGs, and asset bundles)
@@ -183,17 +175,15 @@ This generates `compile_commands.json`. Re-run this after adding new source file
 │   └── svg             # Source vector graphics
 ├── scripts             # Python utility scripts (e.g., icon merging, svg rendering)
 ├── src                 # Tweak source code
-│   ├── Core            # Constructor, preferences, resources, and diagnostics
+│   ├── Core            # Constructor, preferences, and resources
 │   ├── Features        # All the hooks for modifying the Facebook app:
 │   │   ├── AppChrome   # UI settings gesture (TabBar & Settings Button)
 │   │   ├── AppIcons    # Custom app-icon picker logic
-│   │   ├── Diagnostics # Diagnostics and logging controllers
 │   │   ├── Downloads   # Reel & Story media downloaders (save to Photos)
 │   │   ├── Feed        # Feed-related hooks (ads, suggestions, Reels)
 │   │   ├── Language    # UI language override hooks
 │   │   ├── LikeConfirmation # Confirm before liking logic
 │   │   ├── Links       # Open external links in the default browser (not the IAB)
-│   │   ├── Menu        # Diagnostics for blocking server-driven menu sections
 │   │   ├── OLED        # True dark mode implementation
 │   │   ├── Onboarding  # Welcome screen controller
 │   │   ├── Stories     # Story-related hooks (Ghost mode, auto-advance block)
@@ -210,14 +200,8 @@ This generates `compile_commands.json`. Re-run this after adding new source file
 
 ## 📜 Provenance & Credits
 
-- **Upstream:** This repository is a fork of **SHAJON-404/Facebook-Plus**. The main Facebook Plus feature set and project architecture remain credited to S. SHAJON; fork-specific additions are documented separately above.
-- **ttlongdl fork add-ons:** DeepLinkBridge, FBAudioFix integration, the Safari “Open in Facebook” routing workflow, and injection-export workflow are maintained in this fork as local additions.
-
-- **Idea & Inspiration:** The core concept of this tweak was inspired by the closed-source Facebook tweak **[Glow](https://github.com/dayanch96/Glow)**. This project is a clean reimplementation based on its behavioral analysis.
-- **Story & Reels Downloader:** The media download feature (`src/Features/Downloads/`) was contributed by **[ttlongdl](https://github.com/ttlongdl/Facebook-Plus)** via their GPLv3 fork, and is integrated here with attribution as required by the license.
-- **"Open in Facebook" Safari Extension:** The bundled Safari web extension (`OpenInFacebookSafariExtension/`, built from source into the IPA) is our own, independently written implementation — its own `NSExtension` host, manifest and link-routing scripts, with no third-party binary or source bundled. See `OpenInFacebookSafariExtension/README.md` for details.
-- **Compatibility Layer:** The sideloading compatibility layer (`src/PluginsInject/`) is copied and derived directly from **[zxPluginsInject](https://github.com/asdfzxcvbn/zxPluginsInject)**.
-- **Symbol Rebinding:** Uses **[fishhook](https://github.com/facebook/fishhook)** for dynamic symbol rebinding.
+Third-party code, inspirations, and attributions are documented in
+**[ROADMAP_AND_CREDITS.md](ROADMAP_AND_CREDITS.md)**.
 
 ## ⚖️ License
 

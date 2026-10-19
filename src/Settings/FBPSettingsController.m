@@ -12,7 +12,6 @@
 #import "FBPResources.h"
 #import "FBPSheet.h"
 #import "FBPToast.h"
-#import "FBPDiagnosticsController.h"
 #import "FBPAppIconController.h"
 #import "FBPLanguageController.h"
 #import "FBPWelcomeController.h"
@@ -34,7 +33,6 @@ static NSString *const kTypeSwitch = @"bool";
 static NSString *const kTypeAction = @"action";
 
 static NSString *const kActionClearCache  = @"clearCache";
-static NSString *const kActionDiagnostics = @"diagnostics";
 static NSString *const kActionAppIcon     = @"appIcon";
 static NSString *const kActionWelcome     = @"welcome";
 static NSString *const kActionReset       = @"reset";
@@ -330,6 +328,9 @@ compatibleWithTraitCollection:nil]
                        icon:@"people" color:UIColor.systemBlueColor],
             [self switchRow:FBPKeyNoReels title:FBPL(@"row.noreels.title") desc:nil
                        icon:@"reels" color:UIColor.systemPinkColor],
+            [self switchRow:FBPKeyNoStories title:FBPL(@"row.nostories.title")
+                       desc:FBPL(@"row.nostories.desc")
+                       icon:@"circle.dashed" color:UIColor.systemPurpleColor],
             [self switchRow:FBPKeyNoThreads title:FBPL(@"row.nothreads.title")
                        desc:FBPL(@"row.nothreads.desc")
                        icon:@"at" color:UIColor.systemIndigoColor],
@@ -354,6 +355,9 @@ compatibleWithTraitCollection:nil]
         @{ @"header" : @"Reels", @"rows" : @[
             [self switchRow:FBPKeyReelsLike title:FBPL(@"row.reelslike.title") desc:nil
                        icon:@"alert" color:UIColor.systemGreenColor],
+            [self switchRow:FBPKeyReelsHideOverlay title:FBPL(@"row.hideoverlay.title")
+                       desc:FBPL(@"row.hideoverlay.desc")
+                       icon:@"eye" color:UIColor.systemIndigoColor],
         ]},
         @{ @"header" : @"Stories", @"rows" : @[
             [self switchRow:FBPKeyAnonymousStories title:FBPL(@"row.anonstories.title")
@@ -385,9 +389,6 @@ compatibleWithTraitCollection:nil]
             @{ kRowKey : kActionClearCache, kRowType : kTypeAction,
                kRowTitle : FBPL(@"row.clearcache.title"),
                kRowIcon : @"trash.fill", kRowColor : UIColor.systemRedColor },
-            @{ kRowKey : kActionDiagnostics, kRowType : kTypeAction, kRowNav : @YES,
-               kRowTitle : FBPL(@"row.diagnostics.title"), kRowDesc : FBPL(@"row.diagnostics.desc"),
-               kRowIcon : @"waveform.path.ecg", kRowColor : UIColor.systemGreenColor },
             @{ kRowKey : kActionCheckUpdate, kRowType : kTypeAction,
                kRowTitle : FBPL(@"row.checkupdate.title"), kRowDesc : FBPL(@"row.checkupdate.desc"),
                kRowIcon : @"arrow.down.circle", kRowColor : UIColor.systemBlueColor },
@@ -557,8 +558,6 @@ compatibleWithTraitCollection:nil]
 
     if ([key isEqualToString:kActionClearCache]) {
         [self clearCache];
-    } else if ([key isEqualToString:kActionDiagnostics]) {
-        [self presentInNavigation:[[FBPDiagnosticsController alloc] init]];
     } else if ([key isEqualToString:kActionAppIcon]) {
         [self presentInNavigation:[[FBPAppIconController alloc] init]];
     } else if ([key isEqualToString:kActionWelcome]) {
