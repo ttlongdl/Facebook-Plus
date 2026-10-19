@@ -106,7 +106,7 @@ jobs:
       - name: Publish draft release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.meta.outputs.version }}-${{ github.run_number }}
+          tag_name: v${{ steps.meta.outputs.version }}
           name: Facebook Plus v${{ steps.meta.outputs.version }}
           # Each file is uploaded as its own separate release asset.
           files: |
