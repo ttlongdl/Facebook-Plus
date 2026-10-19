@@ -61,6 +61,7 @@ static NSString *const kCell = @"fbp.language.row";
             @{ kCode:@"pt-BR",   kName:@"Português (Brasil)", kEng:@"Portuguese (Brazil)" },
             @{ kCode:@"ru",      kName:@"Русский",            kEng:@"Russian" },
             @{ kCode:@"tr",      kName:@"Türkçe",             kEng:@"Turkish" },
+            @{ kCode:@"vi",      kName:@"Tiếng Việt",          kEng:@"Vietnamese" },
             @{ kCode:@"ja",      kName:@"日本語",             kEng:@"Japanese" },
             @{ kCode:@"ko",      kName:@"한국어",             kEng:@"Korean" },
             @{ kCode:@"zh-Hans", kName:@"简体中文",           kEng:@"Chinese (Simplified)" },
@@ -81,10 +82,11 @@ static NSString *const kCell = @"fbp.language.row";
     self.tableView.separatorInset = UIEdgeInsetsMake(0, 16, 0, 0);
 
     [self.tableView registerClass:FBPLanguageCell.class forCellReuseIdentifier:kCell];
-    self.navigationItem.rightBarButtonItem =
-        [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone
-                                                      target:self
-                                                      action:@selector(closeTapped)];
+    UIBarButtonItem *done = [[UIBarButtonItem alloc]
+        initWithBarButtonSystemItem:UIBarButtonSystemItemDone
+                            target:self action:@selector(closeTapped)];
+    done.tintColor = FBPTintColor();
+    self.navigationItem.rightBarButtonItem = done;
     [self applyNavigationChrome];
 }
 
@@ -103,6 +105,14 @@ static NSString *const kCell = @"fbp.language.row";
             NSForegroundColorAttributeName : FBPIconColor(),
             NSFontAttributeName : FBPFont(17, UIFontWeightSemibold),
         };
+        UIBarButtonItemAppearance *plain = [[UIBarButtonItemAppearance alloc]
+            initWithStyle:UIBarButtonItemStylePlain];
+        [plain.normal setTitleTextAttributes:@{
+            NSForegroundColorAttributeName : FBPTintColor(),
+            NSFontAttributeName : FBPFont(16, UIFontWeightSemibold),
+        }];
+        appearance.buttonAppearance = plain;
+        appearance.doneButtonAppearance = plain;
         bar.standardAppearance = appearance;
         bar.scrollEdgeAppearance = appearance;
         bar.compactAppearance = appearance;
