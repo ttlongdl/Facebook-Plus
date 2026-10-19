@@ -6,6 +6,7 @@
 #import <math.h>
 #import <stdarg.h>
 
+static void FBLog(NSString *format, ...);
 static NSTimeInterval gLastConfirmedTap = 0.0;
 static NSTimeInterval gReelsIntentUntil = 0.0;
 static NSMapTable<UITouch *, NSValue *> *gTouchStarts = nil;
@@ -19,6 +20,28 @@ static BOOL gEnteredBackgroundAfterResign = NO;
 static NSTimeInterval gResumeExclusiveIntentUntil = 0.0;
 static NSTimeInterval gExternalDeepLinkIntentUntil = 0.0;
 static BOOL gExternalDeepLinkPlaybackObserved = NO;
+static NSTimeInterval gInboundReelIntentUntil = 0.0;
+static BOOL (*oContinueUserActivity)(id, SEL, UIApplication *, NSUserActivity *, id) = NULL;
+static BOOL FBAudioURLLooksLikeReel(NSURL *url) {
+    NSString *host = url.host.lowercaseString ?: @"";
+    if (!([host isEqualToString:@"facebook.com"] || [host hasSuffix:@".facebook.com"] ||
+          [host isEqualToString:@"fb.watch"] || [host isEqualToString:@"fbwat.ch"])) return NO;
+    NSString *path = url.path.lowercaseString ?: @"";
+    return [path containsString:@"/reel/"] || [path containsString:@"/reels/"] ||
+           [path containsString:@"/share/r/"] || [path containsString:@"/watch/"];
+}
+static BOOL hContinueUserActivity(id delegate, SEL cmd, UIApplication *app,
+                                  NSUserActivity *activity, id restorationHandler) {
+    NSURL *url = activity.webpageURL;
+    if (FBAudioURLLooksLikeReel(url)) {
+        gInboundReelIntentUntil = NSProcessInfo.processInfo.systemUptime + 12.0;
+        FBLog(@"INBOUND REEL universalLink intent=12s host=%@ path=%@", url.host, url.path);
+    } else {
+        FBLog(@"INBOUND universalLink ignored host=%@ path=%@", url.host, url.path);
+    }
+    return oContinueUserActivity(delegate, cmd, app, activity, restorationHandler);
+}
+
 static NSString * const FBPExternalDeepLinkNotification = @"FBPExternalDeepLinkDidOpenNotification";
 
 static void (*oSendEvent)(UIApplication *, SEL, UIEvent *) = NULL;
@@ -105,7 +128,7 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
     NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
     BOOL reelsIntent = gReelsIntentUntil > now;
     BOOL resumeExclusiveIntent = gResumeExclusiveIntentUntil > now;
-    if (reelsIntent || resumeExclusiveIntent) {
+    if (gInboundReelIntentUntil > now) {\n        gInboundReelIntentUntil = 0.0;\n        gLastConfirmedTap = now;\n        FBLog(@"DECISION allow reason=inboundReelUniversalLink otherAudio=%@", session.isOtherAudioPlaying ? @"YES" : @"NO");\n        return NO;\n    }\n    if (reelsIntent || resumeExclusiveIntent) {
         FBLog(@"DECISION allow reason=%@ otherAudio=%@ category=%@", reelsIntent ? @"reelsIntent" : @"resumeIntent", session.isOtherAudioPlaying ? @"YES" : @"NO", requestedCategory);
         return NO;
     }
@@ -639,7 +662,7 @@ static void InitFBAudioFix(void) {
                    (IMP *)&oStoryBucketViewDidDisappear);
         }
 
-        Class audioClass = objc_getClass("AVAudioSession");
+        Class delegateClass = objc_getClass("FBBaseAppDelegate");\n        SEL activitySelector = @selector(application:continueUserActivity:restorationHandler:);\n        if (delegateClass && class_getInstanceMethod(delegateClass, activitySelector)) {\n            FBHook(delegateClass, activitySelector, (IMP)hContinueUserActivity,\n                   (IMP *)&oContinueUserActivity);\n            FBLog(@"INBOUND REEL universalLink hook installed");\n        } else {\n            FBLog(@"INBOUND REEL universalLink hook unavailable");\n        }\n\n        Class audioClass = objc_getClass("AVAudioSession");
         if (!audioClass) return;
 
         FBHook(audioClass, @selector(setCategory:error:),
