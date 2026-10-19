@@ -523,6 +523,9 @@ static void FBPApplyForcedAppearance(void) {
 %end // FBPOLEDGlobal
 
 void FBPInitOLEDHooks(void) {
+    // FBPInstallHooks runs again for every dyld image. Install observers and
+    // hooks together only once; otherwise each framework load adds observers.
+    FBP_ONCE(gOLEDInitialized) {
     FBPRefreshOLED();
 
     // Toggling OLED in settings immediately forces (or releases) the dark
@@ -545,5 +548,6 @@ void FBPInitOLEDHooks(void) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{ FBPApplyForcedAppearance(); });
 
-    FBP_ONCE(gOLED) { %init(FBPOLEDGlobal); }
+    %init(FBPOLEDGlobal);
+    } // gOLEDInitialized
 }
