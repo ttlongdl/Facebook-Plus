@@ -7,6 +7,10 @@
 #import <stdarg.h>
 
 static void FBLog(NSString *format, ...);
+static __weak UIViewController *gStoryProbeViewer = nil;
+static BOOL gStoryAudioIntentActive = NO;
+static BOOL FBStoryViewerVisible(void);
+
 static NSTimeInterval gLastConfirmedTap = 0.0;
 static NSTimeInterval gReelsIntentUntil = 0.0;
 static NSMapTable<UITouch *, NSValue *> *gTouchStarts = nil;
@@ -293,9 +297,7 @@ static void FBStoryProbeTouch(UITouch *touch, BOOL isTap) {
 }
 
 // Phase 4: read-only, bounded Story mute-control discovery.
-static __weak UIViewController *gStoryProbeViewer = nil;
 // v1: explicit unmute intent scoped to the Story viewer; never inferred from swipes.
-static BOOL gStoryAudioIntentActive = NO;
 static NSTimeInterval gStoryAudioLastTap = 0.0;
 static NSTimeInterval gStoryAudioLastPlayback = 0.0;
 static BOOL FBStoryViewerVisible(void) {
