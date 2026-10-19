@@ -3,7 +3,7 @@
 #import "FBPResources.h"
 #import "FBPPrefs.h"
 
-#if __has_include(<rootless.h>)
+#if FBP_USE_ROOTLESS_PATHS
 #import <rootless.h>
 #endif
 
@@ -17,7 +17,7 @@ static NSString *const kBundleName = @"FacebookPlus.bundle";
     dispatch_once(&onceToken, ^{
         NSMutableArray<NSString *> *candidates = [NSMutableArray array];
 
-#if __has_include(<rootless.h>)
+#if FBP_USE_ROOTLESS_PATHS
         // Rootless / roothide: the real path is prefixed at build time.
         [candidates addObject:ROOT_PATH_NS(@"/Library/Application Support/FacebookPlus.bundle")];
 #endif

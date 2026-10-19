@@ -39,6 +39,7 @@ FacebookPlus_FILES = \
 	src/Features/Downloads/FBPStoryDownloader.xm \
 	src/Features/Links/FBPLinkHooks.xm \
 	src/Features/Links/FBPLinkBridge.xm \
+	addons/FBAudioFix.xm \
 	src/Features/Update/FBPUpdateController.m \
 	src/Features/Update/FBPUpdateChecker.m \
 	src/PluginsInject/PluginsInject.mm \
@@ -51,8 +52,16 @@ FacebookPlus_FILES = \
 # (an NSString literal) so the update checker can compare against GitHub releases.
 FBP_VERSION := $(shell awk -F': ' '/^Version:/{print $$2; exit}' control)
 
+# rootless.h may link libroot: never enable for rootful/sideload builds.
+ifeq ($(THEOS_PACKAGE_SCHEME),rootless)
+FBP_USE_ROOTLESS_PATHS := 1
+else
+FBP_USE_ROOTLESS_PATHS := 0
+endif
+
 FacebookPlus_CFLAGS  = -fobjc-arc -Wno-deprecated-declarations \
 	-DFBP_VERSION='@"$(FBP_VERSION)"' \
+	-DFBP_USE_ROOTLESS_PATHS=$(FBP_USE_ROOTLESS_PATHS) \
 	-Isrc/Core -Isrc/UI/Toast -Isrc/UI/Sheet -Isrc/Settings \
 	-Isrc/Features/Onboarding \
 	-Isrc/Features/AppIcons -Isrc/Features/Language \
