@@ -12,6 +12,9 @@ static BOOL gStoryAudioIntentActive = NO;
 static BOOL FBStoryViewerVisible(void);
 static NSTimeInterval gStoryEntryIntentUntil = 0.0;
 static BOOL gStoryMuteObserved = NO;
+// v2.1: Story tile tap may trigger Playback before viewer viewDidAppear.
+static NSTimeInterval gStoryOpenIntentUntil = 0.0;
+static BOOL gStoryOpenPlaybackObserved = NO;
 
 static NSTimeInterval gLastConfirmedTap = 0.0;
 static NSTimeInterval gReelsIntentUntil = 0.0;
@@ -175,6 +178,14 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
     }
 
     if (FBPostReleaseGuardActive()) {
+        if (gStoryOpenIntentUntil > now &&
+            UIApplication.sharedApplication.applicationState == UIApplicationStateActive) {
+            gStoryOpenPlaybackObserved = YES;
+            FBLog(@"STORY OPEN allow reason=tileTapGuardBypass otherAudio=%@",
+                  session.isOtherAudioPlaying ? @"YES" : @"NO");
+            return NO;
+        }
+        FBLog(@"DECISION suppress reason=postReleaseGuard");
         return YES;
     }
 
@@ -319,6 +330,8 @@ static void FBStoryIntentClear(NSString *reason) {
     gStoryAudioIntentActive = NO;
     gStoryMuteObserved = NO;
     gStoryEntryIntentUntil = 0.0;
+    gStoryOpenIntentUntil = 0.0;
+    gStoryOpenPlaybackObserved = NO;
     gStoryAudioLastTap = 0.0;
 }
 static BOOL FBStoryIntentTapRecent(void) {
@@ -419,7 +432,8 @@ static void FBFinishTouch(UITouch *touch) {
             FBLog(@"STORY AUDIO TOUCH kind=%@ target=%@",
                   (duration <= maxDuration && distanceSquared <= maxDistance * maxDistance) ? @"tap" : @"swipe",
                   touch.view ? NSStringFromClass(touch.view.class) : @"(null)");
-            if (duration <= maxDuration && distanceSquared <= maxDistance * maxDistance) {
+            if (duration <= maxDuration && distanceSquared <= maxDistance * maxDistance &&
+                ![touch.view.accessibilityIdentifier isEqualToString:@"close_story_button"]) {
                 gStoryAudioLastTap = NSProcessInfo.processInfo.systemUptime;
                 FBLog(@"STORY INTENT tap pending active=%@",
                       gStoryAudioIntentActive ? @"YES" : @"NO");
@@ -432,6 +446,22 @@ static void FBFinishTouch(UITouch *touch) {
         duration <= maxDuration &&
         distanceSquared <= maxDistance * maxDistance) {
         UIView *targetView = touch.view;
+        // A feed Story tile is distinct from passive feed autoplay.
+        // Match the actual touch ancestry, not generic taps.
+        BOOL storyTile = NO;
+        for (UIView *v = targetView, *root = nil; v && v != root; v = v.superview) {
+            NSString *name = NSStringFromClass(v.class);
+            if ([name isEqualToString:@"FDSStoriesTileInternalPressStateBackingView"]) {
+                storyTile = YES;
+                break;
+            }
+        }
+        if (storyTile && !FBStoryViewerVisible()) {
+            gStoryOpenIntentUntil = NSProcessInfo.processInfo.systemUptime + 3.0;
+            gStoryOpenPlaybackObserved = NO;
+            FBLog(@"STORY OPEN tileTap window=3s guard=%@",
+                  FBPostReleaseGuardActive() ? @"YES" : @"NO");
+        }
         if (FBIsBottomTabTap(targetView)) {
             if (FBIsReelsBottomTab(targetView)) {
                 NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
@@ -735,6 +765,11 @@ static void hVCViewDidAppear(UIViewController *vc, SEL cmd, BOOL animated) {
     if ([storyProbeName isEqualToString:@"FBSnacksViewerViewController"]) {
         if (gStoryProbeViewer != vc) FBStoryIntentClear(@"newViewer");
         gStoryProbeViewer = vc;
+        if (gStoryOpenPlaybackObserved) {
+            FBLog(@"STORY OPEN playbackBeforeViewer observed=YES");
+        }
+        gStoryOpenIntentUntil = 0.0;
+        gStoryOpenPlaybackObserved = NO;
         // Opening a Story is explicit navigation; permit initial Playback if
         // Facebook is configured to start Stories with sound.
         // A muted Story normally requests Ambient and does not arm continuity.
@@ -851,7 +886,7 @@ static void FBHook(Class cls, SEL sel, IMP replacement, IMP *original) {
 __attribute__((constructor))
 static void InitFBAudioFix(void) {
     @autoreleasepool {
-        FBLog(@"PROBE START FBAudioFix next Story Audio Intent Session v2 experimental");
+        FBLog(@"PROBE START FBAudioFix next Story Audio Intent Session v2.1");
         gTouchStarts = [NSMapTable weakToStrongObjectsMapTable];
         gTouchStartTimes = [NSMapTable weakToStrongObjectsMapTable];
 
