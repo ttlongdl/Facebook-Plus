@@ -31,7 +31,40 @@ static void (*oVCViewDidAppear)(UIViewController *, SEL, BOOL) = NULL;
 static void (*oVCViewDidDisappear)(UIViewController *, SEL, BOOL) = NULL;
 static void (*oStoryBucketViewDidDisappear)(UIViewController *, SEL, BOOL) = NULL;
 
-static void FBLog(NSString *format, ...) { (void)format; }
+static void FBLog(NSString *format, ...) {
+    static NSString *logPath = nil;
+    static dispatch_queue_t logQueue = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+        logPath = [[docs ?: NSTemporaryDirectory() stringByAppendingPathComponent:@"FBP-AudioFix-Probe.txt"] copy];
+        logQueue = dispatch_queue_create("com.fbplus.audiofix.probe", DISPATCH_QUEUE_SERIAL);
+    });
+    va_list args;
+    va_start(args, format);
+    NSString *message = [[NSString alloc] initWithFormat:format arguments:args];
+    va_end(args);
+    NSString *line = [NSString stringWithFormat:@"[%.3f] %@\\n", NSProcessInfo.processInfo.systemUptime, message];
+    dispatch_async(logQueue, ^{
+        @autoreleasepool {
+            NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:logPath];
+            if (!handle) {
+                [NSFileManager.defaultManager createFileAtPath:logPath contents:nil attributes:nil];
+                handle = [NSFileHandle fileHandleForWritingAtPath:logPath];
+            }
+            if (!handle) return;
+            @try {
+                unsigned long long size = [handle seekToEndOfFile];
+                if (size > 512 * 1024) {
+                    [handle truncateFileAtOffset:0];
+                    [handle seekToFileOffset:0];
+                }
+                [handle writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
+            } @catch (NSException *exception) { (void)exception; }
+            [handle closeFile];
+        }
+    });
+}
 
 static inline BOOL FBIsPlayback(AVAudioSessionCategory category) {
     return [category isEqualToString:AVAudioSessionCategoryPlayback];
@@ -54,6 +87,7 @@ static void FBExternalDeepLinkDidOpen(NSNotification *note) {
     (void)note;
     gExternalDeepLinkIntentUntil = NSProcessInfo.processInfo.systemUptime + 6.0;
     gExternalDeepLinkPlaybackObserved = NO;
+    FBLog(@"DEEPLINK received window=6s");
 }
 
 static inline BOOL FBPostReleaseGuardActive(void) {
@@ -72,6 +106,7 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
     BOOL reelsIntent = gReelsIntentUntil > now;
     BOOL resumeExclusiveIntent = gResumeExclusiveIntentUntil > now;
     if (reelsIntent || resumeExclusiveIntent) {
+        FBLog(@"DECISION allow reason=%@ otherAudio=%@ category=%@", reelsIntent ? @"reelsIntent" : @"resumeIntent", session.isOtherAudioPlaying ? @"YES" : @"NO", requestedCategory);
         return NO;
     }
 
@@ -79,6 +114,7 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
         gExternalDeepLinkPlaybackObserved = YES;
         gLastConfirmedTap = now;
         gExternalDeepLinkIntentUntil = 0.0;
+        FBLog(@"DECISION allow reason=deepLink otherAudio=%@ category=%@", session.isOtherAudioPlaying ? @"YES" : @"NO", requestedCategory);
         return NO;
     }
 
@@ -86,7 +122,9 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
         return YES;
     }
 
-    return session.isOtherAudioPlaying && !FBRecentConfirmedTap();
+    BOOL suppress = session.isOtherAudioPlaying && !FBRecentConfirmedTap();
+    FBLog(@"DECISION %@ otherAudio=%@ recentTap=%@ category=%@", suppress ? @"suppress" : @"allow", session.isOtherAudioPlaying ? @"YES" : @"NO", FBRecentConfirmedTap() ? @"YES" : @"NO", requestedCategory);
+    return suppress;
 }
 
 static NSString *FBViewChain(UIView *view) {
@@ -550,6 +588,7 @@ static void FBHook(Class cls, SEL sel, IMP replacement, IMP *original) {
 __attribute__((constructor))
 static void InitFBAudioFix(void) {
     @autoreleasepool {
+        FBLog(@"PROBE START FBAudioFix next phase2 audio diagnostics");
         gTouchStarts = [NSMapTable weakToStrongObjectsMapTable];
         gTouchStartTimes = [NSMapTable weakToStrongObjectsMapTable];
 
