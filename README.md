@@ -10,11 +10,13 @@
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square"></a>
     <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2017.0%2B-lightgrey.svg?style=flat-square">
-    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.1-success.svg?style=flat-square">
+    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.2--1-success.svg?style=flat-square">
   </p>
 </div>
 
 ---
+
+**Fork release:** `v1.0.2-1` — upstream-based build with tested audio arbitration (Feed, Stories and Reels), Reels overlay control, and downloader/UI fixes. Update Checker continues to query only `SHAJON-404/Facebook-Plus` upstream releases.
 
 ## ✨ Features
 
