@@ -2,9 +2,6 @@ name: Publish Fork Release
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Build"]
-    types: [completed]
 
 permissions:
   contents: write
@@ -12,7 +9,6 @@ permissions:
 
 jobs:
   publish:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
