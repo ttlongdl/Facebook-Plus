@@ -45,6 +45,106 @@ static BOOL gOLEDEnabled = NO;
 
 static void FBPRefreshOLED(void) { gOLEDEnabled = FBPEnabled(FBPKeyOLED); }
 
+
+#pragma mark - Reversible OLED mutations
+
+// Weak tracking avoids retaining Facebook's large scrolling view hierarchy.
+// Only values actually changed by OLED are snapshotted; never overwrite the
+// original on subsequent layout passes. Restoration runs while OLED is off.
+static NSHashTable *FBPOLEDChangedObjects(void) {
+    static NSHashTable *objects;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ objects = [NSHashTable weakObjectsHashTable]; });
+    return objects;
+}
+static char kFBPOLEDSnapshotKey;
+static id FBPOLEDBox(id value) { return value ?: (id)NSNull.null; }
+static id FBPOLEDUnbox(id value) { return value == NSNull.null ? nil : value; }
+static NSMutableDictionary *FBPOLEDSnapshot(id object) {
+    NSMutableDictionary *saved = objc_getAssociatedObject(object, &kFBPOLEDSnapshotKey);
+    if (!saved) {
+        saved = [NSMutableDictionary dictionary];
+        objc_setAssociatedObject(object, &kFBPOLEDSnapshotKey, saved, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [FBPOLEDChangedObjects() addObject:object];
+    }
+    return saved;
+}
+static void FBPOLEDRemember(id object, NSString *key, id original) {
+    if (!object) return;
+    NSMutableDictionary *saved = FBPOLEDSnapshot(object);
+    if (!saved[key]) saved[key] = FBPOLEDBox(original);
+}
+static void FBPOLEDViewBackground(UIView *view, UIColor *color) {
+    if (!view) return;
+    FBPOLEDRemember(view, @"view.background", view.backgroundColor);
+    view.backgroundColor = color;
+}
+static void FBPOLEDLayerBackground(CALayer *layer, CGColorRef color) {
+    if (!layer) return;
+    FBPOLEDRemember(layer, @"layer.background", (__bridge id)layer.backgroundColor);
+    layer.backgroundColor = color;
+}
+static void FBPOLEDShapeFill(CAShapeLayer *layer, CGColorRef color) {
+    FBPOLEDRemember(layer, @"shape.fill", (__bridge id)layer.fillColor);
+    layer.fillColor = color;
+}
+static void FBPOLEDGradientColors(CAGradientLayer *layer, NSArray *colors) {
+    FBPOLEDRemember(layer, @"gradient.colors", [layer.colors copy]);
+    layer.colors = colors;
+}
+static void FBPOLEDAvatarMask(UIView *view, CGFloat radius) {
+    FBPOLEDRemember(view, @"view.clips", @(view.clipsToBounds));
+    FBPOLEDRemember(view.layer, @"layer.mask", @(view.layer.masksToBounds));
+    FBPOLEDRemember(view.layer, @"layer.radius", @(view.layer.cornerRadius));
+    view.layer.cornerRadius = radius;
+    view.layer.masksToBounds = YES;
+    view.clipsToBounds = YES;
+}
+static void FBPOLEDNavigationBar(UINavigationBar *bar) {
+    FBPOLEDRemember(bar, @"bar.translucent", @(bar.translucent));
+    FBPOLEDRemember(bar, @"bar.tint", bar.barTintColor);
+    FBPOLEDRemember(bar, @"bar.standard", bar.standardAppearance);
+    FBPOLEDRemember(bar, @"bar.compact", bar.compactAppearance);
+    FBPOLEDRemember(bar, @"bar.scroll", bar.scrollEdgeAppearance);
+    if (@available(iOS 15.0, *))
+        FBPOLEDRemember(bar, @"bar.compactScroll", bar.compactScrollEdgeAppearance);
+}
+static void FBPOLEDRestoreAll(void) {
+    NSArray *objects = FBPOLEDChangedObjects().allObjects;
+    for (id object in objects) {
+        NSDictionary *saved = objc_getAssociatedObject(object, &kFBPOLEDSnapshotKey);
+        if (!saved) continue;
+        if ([object isKindOfClass:UIView.class]) {
+            UIView *v = object;
+            if (saved[@"view.background"]) v.backgroundColor = FBPOLEDUnbox(saved[@"view.background"]);
+            if (saved[@"view.clips"]) v.clipsToBounds = [saved[@"view.clips"] boolValue];
+            if ([v isKindOfClass:UINavigationBar.class]) {
+                UINavigationBar *bar = (UINavigationBar *)v;
+                if (saved[@"bar.translucent"]) bar.translucent = [saved[@"bar.translucent"] boolValue];
+                if (saved[@"bar.tint"]) bar.barTintColor = FBPOLEDUnbox(saved[@"bar.tint"]);
+                if (saved[@"bar.standard"]) bar.standardAppearance = FBPOLEDUnbox(saved[@"bar.standard"]);
+                if (saved[@"bar.compact"]) bar.compactAppearance = FBPOLEDUnbox(saved[@"bar.compact"]);
+                if (saved[@"bar.scroll"]) bar.scrollEdgeAppearance = FBPOLEDUnbox(saved[@"bar.scroll"]);
+                if (@available(iOS 15.0, *)) {
+                    if (saved[@"bar.compactScroll"]) bar.compactScrollEdgeAppearance = FBPOLEDUnbox(saved[@"bar.compactScroll"]);
+                }
+            }
+        }
+        if ([object isKindOfClass:CALayer.class]) {
+            CALayer *layer = object;
+            if (saved[@"layer.background"]) layer.backgroundColor = (__bridge CGColorRef)FBPOLEDUnbox(saved[@"layer.background"]);
+            if (saved[@"layer.mask"]) layer.masksToBounds = [saved[@"layer.mask"] boolValue];
+            if (saved[@"layer.radius"]) layer.cornerRadius = [saved[@"layer.radius"] doubleValue];
+            if ([layer isKindOfClass:CAShapeLayer.class] && saved[@"shape.fill"])
+                ((CAShapeLayer *)layer).fillColor = (__bridge CGColorRef)FBPOLEDUnbox(saved[@"shape.fill"]);
+            if ([layer isKindOfClass:CAGradientLayer.class] && saved[@"gradient.colors"])
+                ((CAGradientLayer *)layer).colors = FBPOLEDUnbox(saved[@"gradient.colors"]);
+        }
+        objc_setAssociatedObject(object, &kFBPOLEDSnapshotKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    [FBPOLEDChangedObjects() removeAllObjects];
+}
+
 #pragma mark - Colour judgement
 
 /// A dark trait collection every dynamic colour is resolved against. Facebook's
@@ -174,14 +274,14 @@ static BOOL FBPViewLooksLikeDivider(UIView *view) {
 /// view's background, its own layer, and any line-drawing sublayer.
 static void FBPLightenDivider(UIView *view) {
     UIColor *light = FBPDividerColor();
-    view.backgroundColor = light;
-    view.layer.backgroundColor = light.CGColor;
+    FBPOLEDViewBackground(view, light);
+    FBPOLEDLayerBackground(view.layer, light.CGColor);
     for (CALayer *sub in [view.layer.sublayers copy]) {
         if ([sub.delegate isKindOfClass:UIView.class]) continue;
         if ([sub isKindOfClass:CAShapeLayer.class]) {
-            ((CAShapeLayer *)sub).fillColor = light.CGColor;
+            FBPOLEDShapeFill((CAShapeLayer *)sub, light.CGColor);
         }
-        sub.backgroundColor = light.CGColor;
+        FBPOLEDLayerBackground(sub, light.CGColor);
     }
 }
 
@@ -238,17 +338,14 @@ static void FBPFixAvatarBox(UIView *container) {
     CGFloat crDiff = cr > size.width / 2.0 ? cr - size.width / 2.0
                                            : size.width / 2.0 - cr;
     if (hasImageContent && crDiff < 3.0 && !container.layer.masksToBounds) {
-        container.layer.masksToBounds = YES;
-        container.clipsToBounds = YES;
+        FBPOLEDAvatarMask(container, container.layer.cornerRadius);
     }
 
     // Case B: a masked avatar next to bare square placeholder image(s).
     if (maskedAvatar) {
         for (NSUInteger i = 0; i < bareCount; i++) {
             UIImageView *img = bareImages[i];
-            img.layer.cornerRadius = img.bounds.size.width / 2.0;
-            img.layer.masksToBounds = YES;
-            img.clipsToBounds = YES;
+            FBPOLEDAvatarMask(img, img.bounds.size.width / 2.0);
         }
     }
 }
@@ -276,20 +373,20 @@ static void FBPBlackenSublayers(CALayer *layer) {
                     [black addObject:(__bridge id)FBPBlackCGKeepingAlpha(
                                          (__bridge CGColorRef)entry)];
                 }
-                gradient.colors = black;
+                FBPOLEDGradientColors(gradient, black);
             }
             continue;
         }
         if ([sub isKindOfClass:CAShapeLayer.class]) {
             CAShapeLayer *shape = (CAShapeLayer *)sub;
             if (FBPCGColorIsDark(shape.fillColor))
-                shape.fillColor = FBPBlackCGKeepingAlpha(shape.fillColor);
+                FBPOLEDShapeFill(shape, FBPBlackCGKeepingAlpha(shape.fillColor));
             if (FBPCGColorIsDark(shape.backgroundColor))
-                shape.backgroundColor = FBPBlackCGKeepingAlpha(shape.backgroundColor);
+                FBPOLEDLayerBackground(shape, FBPBlackCGKeepingAlpha(shape.backgroundColor));
             continue;
         }
         if (FBPCGColorIsDark(sub.backgroundColor))
-            sub.backgroundColor = FBPBlackCGKeepingAlpha(sub.backgroundColor);
+            FBPOLEDLayerBackground(sub, FBPBlackCGKeepingAlpha(sub.backgroundColor));
     }
 }
 
@@ -301,9 +398,10 @@ static void FBPBlackenSublayers(CALayer *layer) {
 /// so the appearance objects must be reconfigured and the blur flattened.
 static void FBPBlackNavigationBar(UINavigationBar *bar) {
     if (!bar) return;
+    FBPOLEDNavigationBar(bar);
     bar.translucent = NO;
     bar.barTintColor = UIColor.blackColor;
-    bar.backgroundColor = UIColor.blackColor;
+    FBPOLEDViewBackground(bar, UIColor.blackColor);
     if (@available(iOS 13.0, *)) {
         UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
         [appearance configureWithOpaqueBackground];
@@ -319,12 +417,11 @@ static void FBPBlackNavigationBar(UINavigationBar *bar) {
     // Flatten the _UIBarBackground blur that sits behind the bar's content.
     for (UIView *sub in bar.subviews) {
         if ([NSStringFromClass(sub.class) containsString:@"BarBackground"]) {
-            sub.backgroundColor = UIColor.blackColor;
+            FBPOLEDViewBackground(sub, UIColor.blackColor);
             for (UIView *inner in sub.subviews) {
-                inner.backgroundColor = UIColor.blackColor;
+                FBPOLEDViewBackground(inner, UIColor.blackColor);
                 if ([inner isKindOfClass:UIVisualEffectView.class]) {
-                    ((UIVisualEffectView *)inner).contentView.backgroundColor =
-                        UIColor.blackColor;
+                    FBPOLEDViewBackground(((UIVisualEffectView *)inner).contentView, UIColor.blackColor);
                 }
             }
         }
@@ -345,17 +442,16 @@ static void FBPBlackenHeaderTree(UIView *view, int depth) {
             FBPBlackNavigationBar((UINavigationBar *)sub);
         } else if ([sub isKindOfClass:UIVisualEffectView.class]) {
             // A blur in the header reads as grey; cover it flat black.
-            sub.backgroundColor = UIColor.blackColor;
-            ((UIVisualEffectView *)sub).contentView.backgroundColor = UIColor.blackColor;
+            FBPOLEDViewBackground(sub, UIColor.blackColor);
+            FBPOLEDViewBackground(((UIVisualEffectView *)sub).contentView, UIColor.blackColor);
             FBPBlackenSublayers(sub.layer);
             continue;   // don't recurse into the effect view's content
         } else {
             if (FBPColorIsDark(FBPResolve(sub.backgroundColor))) {
-                sub.backgroundColor = FBPBlackKeepingAlpha(sub.backgroundColor);
+                FBPOLEDViewBackground(sub, FBPBlackKeepingAlpha(sub.backgroundColor));
             }
             if (FBPCGColorIsDark(sub.layer.backgroundColor)) {
-                sub.layer.backgroundColor =
-                    FBPBlackCGKeepingAlpha(sub.layer.backgroundColor);
+                FBPOLEDLayerBackground(sub.layer, FBPBlackCGKeepingAlpha(sub.layer.backgroundColor));
             }
         }
         FBPBlackenSublayers(sub.layer);
@@ -412,10 +508,12 @@ static void FBPApplyForcedAppearance(void) {
     if (gOLEDEnabled && !FBPOLEDSkip(self)) {
         // A separator line keeps a faint white instead of vanishing into black.
         if ([NSStringFromClass(self.class) containsString:@"LineComponent"]) {
+            FBPOLEDRemember(self, @"view.background", self.backgroundColor);
             %orig(FBPDividerColor());
             return;
         }
         if (FBPColorIsDark(FBPResolve(color))) {
+            FBPOLEDRemember(self, @"view.background", self.backgroundColor);
             %orig(FBPBlackKeepingAlpha(color));
             return;
         }
@@ -446,10 +544,10 @@ static void FBPApplyForcedAppearance(void) {
     UIColor *bg = self.backgroundColor;
     if (bg) {
         // Views that paint through -backgroundColor (dynamic colours resolved).
-        if (FBPColorIsDark(FBPResolve(bg))) self.backgroundColor = FBPBlackKeepingAlpha(bg);
+        if (FBPColorIsDark(FBPResolve(bg))) FBPOLEDViewBackground(self, FBPBlackKeepingAlpha(bg));
     } else if (FBPCGColorIsDark(self.layer.backgroundColor)) {
         // ComponentKit cards that paint straight onto their own layer.
-        self.layer.backgroundColor = FBPBlackCGKeepingAlpha(self.layer.backgroundColor);
+        FBPOLEDLayerBackground(self.layer, FBPBlackCGKeepingAlpha(self.layer.backgroundColor));
     }
 
     // Cards / fades that paint onto a sublayer (gradient, shape or plain CALayer)
@@ -499,10 +597,10 @@ static void FBPApplyForcedAppearance(void) {
     %orig;
     if (!gOLEDEnabled) return;
     if (FBPColorIsDark(FBPResolve(self.backgroundColor))) {
-        self.backgroundColor = FBPBlackKeepingAlpha(self.backgroundColor);
+        FBPOLEDViewBackground(self, FBPBlackKeepingAlpha(self.backgroundColor));
     }
     if (FBPCGColorIsDark(self.layer.backgroundColor)) {
-        self.layer.backgroundColor = FBPBlackCGKeepingAlpha(self.layer.backgroundColor);
+        FBPOLEDLayerBackground(self.layer, FBPBlackCGKeepingAlpha(self.layer.backgroundColor));
     }
     FBPBlackenSublayers(self.layer);
     FBPBlackenHeaderTree(self, 0);
@@ -535,7 +633,9 @@ void FBPInitOLEDHooks(void) {
                     object:nil
                      queue:NSOperationQueue.mainQueue
                 usingBlock:^(NSNotification *note) {
+        BOOL wasEnabled = gOLEDEnabled;
         FBPRefreshOLED();
+        if (wasEnabled && !gOLEDEnabled) FBPOLEDRestoreAll();
         FBPApplyForcedAppearance();
     }];
 
