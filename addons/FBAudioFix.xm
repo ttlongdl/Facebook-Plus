@@ -244,6 +244,47 @@ static void FBRecordTouchBegan(UITouch *touch) {
     [gTouchStartTimes setObject:@(NSProcessInfo.processInfo.systemUptime) forKey:touch];
 }
 
+// Read-only Story diagnostics. No mute state or audio-session decisions are changed.
+static NSString *FBStoryProbeContext(UIView *view) {
+    UIResponder *responder = view;
+    for (NSUInteger i = 0; responder && i < 24; i++) {
+        if ([responder isKindOfClass:[UIViewController class]]) {
+            NSString *name = NSStringFromClass([responder class]);
+            if ([name containsString:@"Snacks"] || [name containsString:@"Story"]) return name;
+        }
+        responder = responder.nextResponder;
+    }
+    return nil;
+}
+
+static void FBStoryProbeTouch(UITouch *touch, BOOL isTap) {
+    UIView *view = touch.view;
+    NSString *context = FBStoryProbeContext(view);
+    if (!context) return;
+    NSMutableArray<NSString *> *controls = [NSMutableArray array];
+    UIView *cursor = view;
+    for (NSUInteger i = 0; cursor && i < 10; i++, cursor = cursor.superview) {
+        NSString *identifier = cursor.accessibilityIdentifier;
+        if (identifier.length) {
+            [controls addObject:[NSString stringWithFormat:@"%@:%@",
+                                 NSStringFromClass(cursor.class), identifier]];
+        }
+        if ([cursor isKindOfClass:[UIControl class]]) {
+            UIControl *control = (UIControl *)cursor;
+            [controls addObject:[NSString stringWithFormat:@"control=%@ selected=%@ enabled=%@",
+                                 NSStringFromClass(cursor.class),
+                                 control.selected ? @"YES" : @"NO",
+                                 control.enabled ? @"YES" : @"NO"]];
+        }
+    }
+    FBLog(@"STORY PROBE gesture=%@ context=%@ target=%@ chain=%@ controls=%@",
+          isTap ? @"tap" : @"swipe",
+          context,
+          view ? NSStringFromClass(view.class) : @"(null)",
+          FBViewChain(view),
+          controls);
+}
+
 static void FBFinishTouch(UITouch *touch) {
     NSValue *startValue = [gTouchStarts objectForKey:touch];
     NSNumber *startTimeValue = [gTouchStartTimes objectForKey:touch];
@@ -263,6 +304,11 @@ static void FBFinishTouch(UITouch *touch) {
 
     const CGFloat maxDistance = 14.0;
     const NSTimeInterval maxDuration = 0.45;
+
+    if (touch.phase == UITouchPhaseEnded) {
+        FBStoryProbeTouch(touch, duration <= maxDuration &&
+                         distanceSquared <= maxDistance * maxDistance);
+    }
 
     if (touch.phase == UITouchPhaseEnded &&
         duration <= maxDuration &&
@@ -555,6 +601,15 @@ static void FBReleaseOnNewsFeedReturn(NSString *reason) {
 static void hVCViewDidAppear(UIViewController *vc, SEL cmd, BOOL animated) {
     oVCViewDidAppear(vc, cmd, animated);
 
+    NSString *storyProbeName = NSStringFromClass([vc class]);
+    if ([storyProbeName containsString:@"Snacks"] ||
+        [storyProbeName containsString:@"Story"]) {
+        FBLog(@"STORY PROBE lifecycle=%@ class=%@ exclusive=%@ visible=%@ dismissed=%@",
+              NSStringFromSelector(cmd), storyProbeName,
+              gAllowedExclusivePlayback ? @"YES" : @"NO",
+              vc.viewIfLoaded.window ? @"YES" : @"NO",
+              vc.isBeingDismissed ? @"YES" : @"NO");
+    }
     if (!gAllowedExclusivePlayback) return;
 
     NSString *name = NSStringFromClass([vc class]);
@@ -584,6 +639,15 @@ static void hVCViewDidAppear(UIViewController *vc, SEL cmd, BOOL animated) {
 static void hVCViewDidDisappear(UIViewController *vc, SEL cmd, BOOL animated) {
     oVCViewDidDisappear(vc, cmd, animated);
 
+    NSString *storyProbeName = NSStringFromClass([vc class]);
+    if ([storyProbeName containsString:@"Snacks"] ||
+        [storyProbeName containsString:@"Story"]) {
+        FBLog(@"STORY PROBE lifecycle=%@ class=%@ exclusive=%@ visible=%@ dismissed=%@",
+              NSStringFromSelector(cmd), storyProbeName,
+              gAllowedExclusivePlayback ? @"YES" : @"NO",
+              vc.viewIfLoaded.window ? @"YES" : @"NO",
+              vc.isBeingDismissed ? @"YES" : @"NO");
+    }
     if (!gAllowedExclusivePlayback) return;
 
     NSString *name = NSStringFromClass([vc class]);
@@ -639,7 +703,7 @@ static void FBHook(Class cls, SEL sel, IMP replacement, IMP *original) {
 __attribute__((constructor))
 static void InitFBAudioFix(void) {
     @autoreleasepool {
-        FBLog(@"PROBE START FBAudioFix next phase2 audio diagnostics");
+        FBLog(@"PROBE START FBAudioFix next phase3 Story lifecycle and touch diagnostics");
         gTouchStarts = [NSMapTable weakToStrongObjectsMapTable];
         gTouchStartTimes = [NSMapTable weakToStrongObjectsMapTable];
 
