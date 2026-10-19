@@ -44,7 +44,7 @@ static void FBLog(NSString *format, ...) {
     va_start(args, format);
     NSString *message = [[NSString alloc] initWithFormat:format arguments:args];
     va_end(args);
-    NSString *line = [NSString stringWithFormat:@"[%.3f] %@\\n", NSProcessInfo.processInfo.systemUptime, message];
+    NSString *line = [NSString stringWithFormat:@"[%.3f] %@\n", NSProcessInfo.processInfo.systemUptime, message];
     dispatch_async(logQueue, ^{
         @autoreleasepool {
             NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:logPath];
