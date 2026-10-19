@@ -1,29 +1,15 @@
 name: Build
 
-# Verify the tweak compiles on every pull request and push to main by running
-# the project's own build.sh.
+# Manually verify the tweak compiles using the project's own build.sh.
 #
 # CI ships no decrypted Facebook IPA (it cannot, for legal reasons), so build.sh
 # builds the .deb and skips the cyan injection step. The check therefore verifies
 # that the package compiles cleanly; injection tooling (cyan) is not needed here.
 
 on:
-  pull_request:
-    paths-ignore:
-      - "**.md"
-      - "LICENSE"
-      - ".gitignore"
-      - ".github/ISSUE_TEMPLATE/**"
-      - ".github/PULL_REQUEST_TEMPLATE.md"
-  push:
-    branches: [main]
-    paths-ignore:
-      - "**.md"
-      - "LICENSE"
-      - ".gitignore"
   workflow_dispatch:
 
-# Cancel an in-progress run when new commits are pushed to the same PR/branch.
+# Avoid overlapping manually dispatched runs on the same branch.
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
