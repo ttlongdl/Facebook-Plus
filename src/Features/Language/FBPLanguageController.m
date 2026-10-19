@@ -82,11 +82,20 @@ static NSString *const kCell = @"fbp.language.row";
     self.tableView.separatorInset = UIEdgeInsetsMake(0, 16, 0, 0);
 
     [self.tableView registerClass:FBPLanguageCell.class forCellReuseIdentifier:kCell];
-    UIBarButtonItem *done = [[UIBarButtonItem alloc]
-        initWithBarButtonSystemItem:UIBarButtonSystemItemDone
-                            target:self action:@selector(closeTapped)];
-    done.tintColor = FBPTintColor();
-    self.navigationItem.rightBarButtonItem = done;
+    // Use a custom plain text control instead of UIBarButtonSystemItemDone.
+    // The latter may acquire a grey filled/glass background from the host
+    // navigation-bar styling even when UIBarButtonItemAppearance is plain.
+    UIButton *doneButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    [doneButton setTitle:([ [self currentCode] isEqualToString:@"vi"] ? @"Xong" : @"Done") forState:UIControlStateNormal];
+    [doneButton setTitleColor:FBPTintColor() forState:UIControlStateNormal];
+    doneButton.titleLabel.font = FBPFont(16, UIFontWeightSemibold);
+    doneButton.backgroundColor = UIColor.clearColor;
+    doneButton.layer.cornerRadius = 0;
+    doneButton.contentEdgeInsets = UIEdgeInsetsMake(8, 10, 8, 10);
+    [doneButton addTarget:self action:@selector(closeTapped)
+         forControlEvents:UIControlEventTouchUpInside];
+    self.navigationItem.rightBarButtonItem =
+        [[UIBarButtonItem alloc] initWithCustomView:doneButton];
     [self applyNavigationChrome];
 }
 
@@ -162,6 +171,9 @@ static NSString *const kCell = @"fbp.language.row";
     // Re-localize this screen's own chrome, then refresh the checkmarks. The
     // settings screen behind rebuilds itself in -viewWillAppear on dismissal.
     self.title = FBPL(@"row.language.title");
+    UIButton *doneButton = (UIButton *)self.navigationItem.rightBarButtonItem.customView;
+    if ([doneButton isKindOfClass:UIButton.class])
+        [doneButton setTitle:FBPL(@"common.done") forState:UIControlStateNormal];
     [self applyNavigationChrome];
     [tableView reloadData];
 }
