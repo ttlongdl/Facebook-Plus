@@ -172,6 +172,13 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
         return YES;
     }
 
+    if (gStoryAudioIntentActive && FBStoryViewerVisible() &&
+        UIApplication.sharedApplication.applicationState == UIApplicationStateActive) {
+        FBLog(@"STORY INTENT allow reason=continuity otherAudio=%@",
+              session.isOtherAudioPlaying ? @"YES" : @"NO");
+        return NO;
+    }
+
     BOOL suppress = session.isOtherAudioPlaying && !FBRecentConfirmedTap();
     FBLog(@"DECISION %@ otherAudio=%@ recentTap=%@ category=%@", suppress ? @"suppress" : @"allow", session.isOtherAudioPlaying ? @"YES" : @"NO", FBRecentConfirmedTap() ? @"YES" : @"NO", requestedCategory);
     return suppress;
@@ -287,6 +294,39 @@ static void FBStoryProbeTouch(UITouch *touch, BOOL isTap) {
 
 // Phase 4: read-only, bounded Story mute-control discovery.
 static __weak UIViewController *gStoryProbeViewer = nil;
+// v1: explicit unmute intent scoped to the Story viewer; never inferred from swipes.
+static BOOL gStoryAudioIntentActive = NO;
+static NSTimeInterval gStoryAudioLastTap = 0.0;
+static NSTimeInterval gStoryAudioLastPlayback = 0.0;
+static BOOL FBStoryViewerVisible(void) {
+    UIViewController *viewer = gStoryProbeViewer;
+    return viewer && viewer.viewIfLoaded.window != nil;
+}
+static void FBStoryIntentClear(NSString *reason) {
+    if (gStoryAudioIntentActive)
+        FBLog(@"STORY INTENT clear reason=%@", reason);
+    gStoryAudioIntentActive = NO;
+    gStoryAudioLastTap = 0.0;
+}
+static BOOL FBStoryIntentTapRecent(void) {
+    NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
+    return gStoryAudioLastTap > 0.0 && now - gStoryAudioLastTap <= 0.85;
+}
+static void FBStoryIntentPlaybackAllowed(void) {
+    if (!FBStoryViewerVisible() || !FBStoryIntentTapRecent()) return;
+    if (!gStoryAudioIntentActive)
+        FBLog(@"STORY INTENT arm reason=tapPlayback");
+    gStoryAudioIntentActive = YES;
+    gStoryAudioLastPlayback = NSProcessInfo.processInfo.systemUptime;
+}
+static void FBStoryIntentAmbientAllowed(void) {
+    if (FBStoryViewerVisible() && FBStoryIntentTapRecent() &&
+        gStoryAudioIntentActive &&
+        NSProcessInfo.processInfo.systemUptime - gStoryAudioLastPlayback > 0.20) {
+        FBStoryIntentClear(@"tapAmbient");
+    }
+}
+
 static void FBStoryProbeScanView(UIView *view, NSUInteger depth,
                                  NSUInteger *visited, NSUInteger *matches) {
     if (!view || depth > 18 || *visited >= 900 || *matches >= 24) return;
@@ -358,6 +398,11 @@ static void FBFinishTouch(UITouch *touch) {
             FBLog(@"STORY AUDIO TOUCH kind=%@ target=%@",
                   (duration <= maxDuration && distanceSquared <= maxDistance * maxDistance) ? @"tap" : @"swipe",
                   touch.view ? NSStringFromClass(touch.view.class) : @"(null)");
+            if (duration <= maxDuration && distanceSquared <= maxDistance * maxDistance) {
+                gStoryAudioLastTap = NSProcessInfo.processInfo.systemUptime;
+                FBLog(@"STORY INTENT tap pending active=%@",
+                      gStoryAudioIntentActive ? @"YES" : @"NO");
+            }
             FBStoryProbeScheduleSnapshot(@"afterTouch");
         }
     }
@@ -428,6 +473,7 @@ static BOOL hCategoryError(AVAudioSession *session, SEL cmd,
     }
 
     if (FBIsPlayback(category)) {
+        FBStoryIntentPlaybackAllowed();
         gAllowedExclusivePlayback = YES;
         gLastExclusivePlayback = NSProcessInfo.processInfo.systemUptime;
         gMediaControllerAppearedAfterPlayback = NO;
@@ -437,6 +483,7 @@ static BOOL hCategoryError(AVAudioSession *session, SEL cmd,
     } else if (FBIsAmbient(category)) {
         gAllowedExclusivePlayback = NO;
         gMediaControllerAppearedAfterPlayback = NO;
+        FBStoryIntentAmbientAllowed();
         FBLog(@"Ambient ALLOW setter=category1");
     }
 
@@ -455,11 +502,13 @@ static BOOL hCategoryOptions(AVAudioSession *session, SEL cmd,
     }
 
     if (FBIsPlayback(category)) {
+        FBStoryIntentPlaybackAllowed();
         BOOL recentTap = FBRecentConfirmedTap();
         gAllowedExclusivePlayback = YES;
         gLastExclusivePlayback = NSProcessInfo.processInfo.systemUptime;
         gMediaControllerAppearedAfterPlayback = NO;
-        if (recentTap) options &= ~AVAudioSessionCategoryOptionMixWithOthers;
+        if (recentTap || (gStoryAudioIntentActive && FBStoryViewerVisible()))
+            options &= ~AVAudioSessionCategoryOptionMixWithOthers;
         FBLog(@"Playback ALLOW setter=category2 otherAudio=%@ recentTap=%@ finalOptions=0x%lx",
               session.isOtherAudioPlaying ? @"YES" : @"NO",
               recentTap ? @"YES" : @"NO",
@@ -468,6 +517,7 @@ static BOOL hCategoryOptions(AVAudioSession *session, SEL cmd,
         gAllowedExclusivePlayback = NO;
         gMediaControllerAppearedAfterPlayback = NO;
         options |= AVAudioSessionCategoryOptionMixWithOthers;
+        FBStoryIntentAmbientAllowed();
         FBLog(@"Ambient ALLOW setter=category2 finalOptions=0x%lx",
               (unsigned long)options);
     }
@@ -488,8 +538,10 @@ static BOOL hCategoryModeOptions(AVAudioSession *session, SEL cmd,
     }
 
     if (FBIsPlayback(category)) {
+        FBStoryIntentPlaybackAllowed();
         BOOL recentTap = FBRecentConfirmedTap();
-        if (recentTap) options &= ~AVAudioSessionCategoryOptionMixWithOthers;
+        if (recentTap || (gStoryAudioIntentActive && FBStoryViewerVisible()))
+            options &= ~AVAudioSessionCategoryOptionMixWithOthers;
         FBLog(@"Playback ALLOW setter=categoryMode otherAudio=%@ recentTap=%@ finalOptions=0x%lx",
               session.isOtherAudioPlaying ? @"YES" : @"NO",
               recentTap ? @"YES" : @"NO",
@@ -618,6 +670,7 @@ static BOOL FBInterestingControllerName(NSString *name) {
 
 
 static void FBReleaseOnNewsFeedReturn(NSString *reason) {
+    FBStoryIntentClear(@"newsFeedReturn");
     if (!gAllowedExclusivePlayback) return;
 
     gLastConfirmedTap = 0.0;
@@ -655,6 +708,7 @@ static void hVCViewDidAppear(UIViewController *vc, SEL cmd, BOOL animated) {
 
     NSString *storyProbeName = NSStringFromClass([vc class]);
     if ([storyProbeName isEqualToString:@"FBSnacksViewerViewController"]) {
+        if (gStoryProbeViewer != vc) FBStoryIntentClear(@"newViewer");
         gStoryProbeViewer = vc;
         FBStoryProbeScheduleSnapshot(@"viewerAppeared");
     }
@@ -696,7 +750,10 @@ static void hVCViewDidDisappear(UIViewController *vc, SEL cmd, BOOL animated) {
     if (vc == gStoryProbeViewer) {
         FBLog(@"STORY AUDIO viewerDisappear dismissed=%@",
               vc.isBeingDismissed ? @"YES" : @"NO");
-        gStoryProbeViewer = nil;
+        if (vc.isBeingDismissed) {
+            FBStoryIntentClear(@"viewerDismissed");
+            gStoryProbeViewer = nil;
+        }
     }
     oVCViewDidDisappear(vc, cmd, animated);
 
@@ -764,7 +821,7 @@ static void FBHook(Class cls, SEL sel, IMP replacement, IMP *original) {
 __attribute__((constructor))
 static void InitFBAudioFix(void) {
     @autoreleasepool {
-        FBLog(@"PROBE START FBAudioFix next phase4 Story audio UI diagnostics");
+        FBLog(@"PROBE START FBAudioFix next Story Audio Intent Session v1");
         gTouchStarts = [NSMapTable weakToStrongObjectsMapTable];
         gTouchStartTimes = [NSMapTable weakToStrongObjectsMapTable];
 
