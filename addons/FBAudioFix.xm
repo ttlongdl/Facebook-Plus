@@ -18,6 +18,8 @@ static BOOL gStoryOpenPlaybackObserved = NO;
 
 static NSTimeInterval gLastConfirmedTap = 0.0;
 static NSTimeInterval gReelsIntentUntil = 0.0;
+// Explicit News Feed video opens may bypass the short post-release autoplay guard.
+static NSTimeInterval gFeedVideoOpenIntentUntil = 0.0;
 static NSMapTable<UITouch *, NSValue *> *gTouchStarts = nil;
 static NSMapTable<UITouch *, NSNumber *> *gTouchStartTimes = nil;
 static BOOL gAllowedExclusivePlayback = NO;
@@ -178,6 +180,13 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
     }
 
     if (FBPostReleaseGuardActive()) {
+        if (gFeedVideoOpenIntentUntil > now &&
+            FBRecentConfirmedTap() &&
+            UIApplication.sharedApplication.applicationState == UIApplicationStateActive) {
+            FBLog(@"FEED VIDEO OPEN allow reason=explicitVideoTapGuardBypass otherAudio=%@",
+                  session.isOtherAudioPlaying ? @"YES" : @"NO");
+            return NO;
+        }
         if (gStoryOpenIntentUntil > now &&
             UIApplication.sharedApplication.applicationState == UIApplicationStateActive) {
             gStoryOpenPlaybackObserved = YES;
@@ -455,6 +464,21 @@ static void FBFinishTouch(UITouch *touch) {
                 storyTile = YES;
                 break;
             }
+        }
+        // Match only the actual video surface; do not grant an exception to
+        // arbitrary Feed taps, Story tiles, tab changes, or passive autoplay.
+        BOOL feedVideoTap = NO;
+        for (UIView *v = targetView; v; v = v.superview) {
+            if ([NSStringFromClass(v.class) isEqualToString:@"FBVideoPlaybackContainerView"]) {
+                feedVideoTap = YES;
+                break;
+            }
+        }
+        if (feedVideoTap && !FBStoryViewerVisible() &&
+            UIApplication.sharedApplication.applicationState == UIApplicationStateActive) {
+            gFeedVideoOpenIntentUntil = NSProcessInfo.processInfo.systemUptime + 1.5;
+            FBLog(@"FEED VIDEO OPEN intent armed window=1.5s guard=%@",
+                  FBPostReleaseGuardActive() ? @"YES" : @"NO");
         }
         if (storyTile && !FBStoryViewerVisible()) {
             gStoryOpenIntentUntil = NSProcessInfo.processInfo.systemUptime + 3.0;
