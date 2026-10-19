@@ -25,12 +25,20 @@ static BOOL (*oContinueUserActivity)(id, SEL, UIApplication *, NSUserActivity *,
 static BOOL (*oOpenURLWithOptions)(id, SEL, UIApplication *, NSURL *, NSDictionary *) = NULL;
 static BOOL hOpenURLWithOptions(id delegate, SEL cmd, UIApplication *app,
                                 NSURL *url, NSDictionary *options) {
-    // Diagnostics only: never modify incoming URL, audio state or delegate result.
     NSString *scheme = url.scheme.lowercaseString ?: @"(none)";
     NSString *host = url.host.lowercaseString ?: @"(none)";
     NSString *path = url.path ?: @"(none)";
     FBLog(@"INBOUND openURL scheme=%@ host=%@ path=%@ optionsKeys=%@",
           scheme, host, path, options.allKeys ?: @[]);
+
+    // Facebook's native fullscreen-video route bypasses Universal Link callbacks.
+    // Arm the same one-shot media intent, but only for this exact video route.
+    if ([scheme isEqualToString:@"fb"] &&
+        [host isEqualToString:@"fullscreen_video"] &&
+        path.length > 1) {
+        gInboundReelIntentUntil = NSProcessInfo.processInfo.systemUptime + 12.0;
+        FBLog(@"INBOUND VIDEO openURL intent=12s host=%@ path=%@", host, path);
+    }
     return oOpenURLWithOptions(delegate, cmd, app, url, options);
 }
 
