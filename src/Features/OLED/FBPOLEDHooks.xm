@@ -74,6 +74,12 @@ static void FBPOLEDRemember(id object, NSString *key, id original) {
     NSMutableDictionary *saved = FBPOLEDSnapshot(object);
     if (!saved[key]) saved[key] = FBPOLEDBox(original);
 }
+// Facebook can assign new backgrounds while OLED is active. For setter hooks,
+ // the requested value is the current underlying model, not the last painted black.
+static void FBPOLEDRememberRequestedBackground(UIView *view, UIColor *requested) {
+    if (!view) return;
+    FBPOLEDSnapshot(view)[@"view.background"] = FBPOLEDBox(requested);
+}
 static void FBPOLEDViewBackground(UIView *view, UIColor *color) {
     if (!view) return;
     FBPOLEDRemember(view, @"view.background", view.backgroundColor);
@@ -508,12 +514,12 @@ static void FBPApplyForcedAppearance(void) {
     if (gOLEDEnabled && !FBPOLEDSkip(self)) {
         // A separator line keeps a faint white instead of vanishing into black.
         if ([NSStringFromClass(self.class) containsString:@"LineComponent"]) {
-            FBPOLEDRemember(self, @"view.background", self.backgroundColor);
+            FBPOLEDRememberRequestedBackground(self, color);
             %orig(FBPDividerColor());
             return;
         }
         if (FBPColorIsDark(FBPResolve(color))) {
-            FBPOLEDRemember(self, @"view.background", self.backgroundColor);
+            FBPOLEDRememberRequestedBackground(self, color);
             %orig(FBPBlackKeepingAlpha(color));
             return;
         }
@@ -561,6 +567,7 @@ static void FBPApplyForcedAppearance(void) {
 %hook UITableView
 - (void)setBackgroundColor:(UIColor *)color {
     if (gOLEDEnabled && !FBPOLEDSkip(self) && FBPColorIsDark(FBPResolve(color))) {
+        FBPOLEDRememberRequestedBackground(self, color);
         %orig(FBPBlackKeepingAlpha(color));
         return;
     }
@@ -571,6 +578,7 @@ static void FBPApplyForcedAppearance(void) {
 %hook UITableViewCell
 - (void)setBackgroundColor:(UIColor *)color {
     if (gOLEDEnabled && !FBPOLEDSkip(self) && FBPColorIsDark(FBPResolve(color))) {
+        FBPOLEDRememberRequestedBackground(self, color);
         %orig(FBPBlackKeepingAlpha(color));
         return;
     }
@@ -581,6 +589,7 @@ static void FBPApplyForcedAppearance(void) {
 %hook UICollectionView
 - (void)setBackgroundColor:(UIColor *)color {
     if (gOLEDEnabled && !FBPOLEDSkip(self) && FBPColorIsDark(FBPResolve(color))) {
+        FBPOLEDRememberRequestedBackground(self, color);
         %orig(FBPBlackKeepingAlpha(color));
         return;
     }
@@ -637,6 +646,19 @@ void FBPInitOLEDHooks(void) {
         FBPRefreshOLED();
         if (wasEnabled && !gOLEDEnabled) FBPOLEDRestoreAll();
         FBPApplyForcedAppearance();
+        // UIKit/ComponentKit may have cached layout while the trait was forced dark.
+        // Rebuild visible surfaces after restoring the original colors.
+        if (wasEnabled != gOLEDEnabled) {
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                if (![scene isKindOfClass:UIWindowScene.class]) continue;
+                for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+                    if ([NSStringFromClass(window.class) hasPrefix:@"FBP"]) continue;
+                    [window setNeedsLayout];
+                    [window.rootViewController.view setNeedsLayout];
+                    [window.rootViewController.view setNeedsDisplay];
+                }
+            }
+        }
     }];
 
     // Re-assert the forced appearance on foreground and shortly after launch.
