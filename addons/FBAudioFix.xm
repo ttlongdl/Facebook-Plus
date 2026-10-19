@@ -128,7 +128,13 @@ static inline BOOL FBShouldSuppressPlayback(AVAudioSession *session,
     NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
     BOOL reelsIntent = gReelsIntentUntil > now;
     BOOL resumeExclusiveIntent = gResumeExclusiveIntentUntil > now;
-    if (gInboundReelIntentUntil > now) {\n        gInboundReelIntentUntil = 0.0;\n        gLastConfirmedTap = now;\n        FBLog(@"DECISION allow reason=inboundReelUniversalLink otherAudio=%@", session.isOtherAudioPlaying ? @"YES" : @"NO");\n        return NO;\n    }\n    if (reelsIntent || resumeExclusiveIntent) {
+    if (gInboundReelIntentUntil > now) {
+        gInboundReelIntentUntil = 0.0;
+        gLastConfirmedTap = now;
+        FBLog(@"DECISION allow reason=inboundReelUniversalLink otherAudio=%@", session.isOtherAudioPlaying ? @"YES" : @"NO");
+        return NO;
+    }
+    if (reelsIntent || resumeExclusiveIntent) {
         FBLog(@"DECISION allow reason=%@ otherAudio=%@ category=%@", reelsIntent ? @"reelsIntent" : @"resumeIntent", session.isOtherAudioPlaying ? @"YES" : @"NO", requestedCategory);
         return NO;
     }
@@ -662,7 +668,17 @@ static void InitFBAudioFix(void) {
                    (IMP *)&oStoryBucketViewDidDisappear);
         }
 
-        Class delegateClass = objc_getClass("FBBaseAppDelegate");\n        SEL activitySelector = @selector(application:continueUserActivity:restorationHandler:);\n        if (delegateClass && class_getInstanceMethod(delegateClass, activitySelector)) {\n            FBHook(delegateClass, activitySelector, (IMP)hContinueUserActivity,\n                   (IMP *)&oContinueUserActivity);\n            FBLog(@"INBOUND REEL universalLink hook installed");\n        } else {\n            FBLog(@"INBOUND REEL universalLink hook unavailable");\n        }\n\n        Class audioClass = objc_getClass("AVAudioSession");
+        Class delegateClass = objc_getClass("FBBaseAppDelegate");
+        SEL activitySelector = @selector(application:continueUserActivity:restorationHandler:);
+        if (delegateClass && class_getInstanceMethod(delegateClass, activitySelector)) {
+            FBHook(delegateClass, activitySelector, (IMP)hContinueUserActivity,
+                   (IMP *)&oContinueUserActivity);
+            FBLog(@"INBOUND REEL universalLink hook installed");
+        } else {
+            FBLog(@"INBOUND REEL universalLink hook unavailable");
+        }
+
+        Class audioClass = objc_getClass("AVAudioSession");
         if (!audioClass) return;
 
         FBHook(audioClass, @selector(setCategory:error:),
