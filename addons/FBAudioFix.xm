@@ -22,6 +22,18 @@ static NSTimeInterval gExternalDeepLinkIntentUntil = 0.0;
 static BOOL gExternalDeepLinkPlaybackObserved = NO;
 static NSTimeInterval gInboundReelIntentUntil = 0.0;
 static BOOL (*oContinueUserActivity)(id, SEL, UIApplication *, NSUserActivity *, id) = NULL;
+static BOOL (*oOpenURLWithOptions)(id, SEL, UIApplication *, NSURL *, NSDictionary *) = NULL;
+static BOOL hOpenURLWithOptions(id delegate, SEL cmd, UIApplication *app,
+                                NSURL *url, NSDictionary *options) {
+    // Diagnostics only: never modify incoming URL, audio state or delegate result.
+    NSString *scheme = url.scheme.lowercaseString ?: @"(none)";
+    NSString *host = url.host.lowercaseString ?: @"(none)";
+    NSString *path = url.path ?: @"(none)";
+    FBLog(@"INBOUND openURL scheme=%@ host=%@ path=%@ optionsKeys=%@",
+          scheme, host, path, options.allKeys ?: @[]);
+    return oOpenURLWithOptions(delegate, cmd, app, url, options);
+}
+
 static BOOL FBAudioURLLooksLikeReel(NSURL *url) {
     NSString *host = url.host.lowercaseString ?: @"";
     if (!([host isEqualToString:@"facebook.com"] || [host hasSuffix:@".facebook.com"] ||
@@ -678,6 +690,15 @@ static void InitFBAudioFix(void) {
             FBLog(@"INBOUND REEL universalLink hook installed");
         } else {
             FBLog(@"INBOUND REEL universalLink hook unavailable");
+        }
+
+        SEL openURLSelector = @selector(application:openURL:options:);
+        if (delegateClass && class_getInstanceMethod(delegateClass, openURLSelector)) {
+            FBHook(delegateClass, openURLSelector, (IMP)hOpenURLWithOptions,
+                   (IMP *)&oOpenURLWithOptions);
+            FBLog(@"INBOUND openURL probe installed");
+        } else {
+            FBLog(@"INBOUND openURL probe unavailable");
         }
 
         Class audioClass = objc_getClass("AVAudioSession");
