@@ -53,7 +53,7 @@ FacebookPlus_FILES = \
 FBP_VERSION := $(shell awk -F': ' '/^Version:/{print $$2; exit}' control)
 
 # rootless.h may link libroot: never enable for rootful/sideload builds.
-ifeq ($(THEOS_PACKAGE_SCHEME),rootless)
+ifneq ($(filter rootless roothide,$(THEOS_PACKAGE_SCHEME)),)
 FBP_USE_ROOTLESS_PATHS := 1
 else
 FBP_USE_ROOTLESS_PATHS := 0
