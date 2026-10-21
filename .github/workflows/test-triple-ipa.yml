@@ -41,9 +41,96 @@ jobs:
           set -euo pipefail
           echo "::add-mask::$IPA_URL"
           mkdir -p test
-          curl --fail --location --silent --show-error "$IPA_URL" -o test/com.facebook.Facebook.ipa
-          unzip -tq test/com.facebook.Facebook.ipa >/dev/null
-          unzip -Z1 test/com.facebook.Facebook.ipa | grep -Eq '^Payload/[^/]+\\.app/Info\\.plist$'
+          http_code=$(curl --fail --location --silent --show-error --write-out '%{http_code}' "$IPA_URL" -o test/com.facebook.Facebook.ipa)
+          echo "Download HTTP status: $http_code"
+          echo "Downloaded bytes: $(wc -c < test/com.facebook.Facebook.ipa)"
+          if ! unzip -tq test/com.facebook.Facebook.ipa >/dev/null; then
+            echo "::error::Downloaded file is not a valid ZIP/IPA archive"
+            exit 1
+          fi
+          if ! unzip -Z1 test/com.facebook.Facebook.ipa | grep -E '^Payload/[^/]+[.]app/Info[.]plist
+
+      - name: Install build tools
+        run: |
+          brew install ldid dpkg xz
+          git clone --quiet --recursive https://github.com/theos/theos.git "$THEOS"
+          pipx install --force https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
+
+      - name: Build FBPlus Rootless DEB (no automatic injection)
+        run: |
+          set -euo pipefail
+          mv test/com.facebook.Facebook.ipa "$RUNNER_TEMP/source-facebook.ipa"
+          SCHEMES=rootless ./build.sh
+          mv "$RUNNER_TEMP/source-facebook.ipa" test/com.facebook.Facebook.ipa
+          test -n "$(find packages -maxdepth 1 -name '*rootless.deb' -print -quit)"
+
+      - name: Build standalone FBAudioFix and ShopeeBlocker
+        run: |
+          set -euo pipefail
+          mkdir -p standalone
+          for repo in FBAudioFix ShopeeBlocker; do
+            git clone --depth 1 "https://github.com/ttlongdl/${repo}.git" "standalone/${repo}"
+            make -C "standalone/${repo}" clean
+            make -C "standalone/${repo}" package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+            find "standalone/${repo}/packages" -maxdepth 1 -name '*.deb' -print
+          done
+
+      - name: Build Safari extensions and merge icon metadata
+        run: |
+          set -euo pipefail
+          mkdir -p staging
+          shopt -s nullglob
+          plugins=()
+          for mk in OpenInFacebookSafariExtension/*/Makefile; do
+            ext_dir="$(dirname "$mk")"
+            make -C "$ext_dir" FINALPACKAGE=1
+            for candidate in "$ext_dir"/.theos/obj/*.appex; do
+              if [[ -f "$candidate/Info.plist" ]]; then plugins+=("$candidate"); fi
+            done
+          done
+          (( ${#plugins[@]} > 0 )) || { echo "::error::No Safari extension was built"; exit 1; }
+          printf '%s\n' "${plugins[@]}" > staging/extensions.txt
+          logos=(resources/logo/fbplus_*.png)
+          if (( ${#logos[@]} > 0 )); then
+            python3 scripts/icon_plist.py test/com.facebook.Facebook.ipa staging/icon-merge.plist
+          fi
+
+      - name: Inject three DEBs and Safari extension
+        env:
+          CUSTOM_BUNDLE_ID: ${{ inputs.bundle_id }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          fb=(packages/*rootless.deb)
+          audio=(standalone/FBAudioFix/packages/*.deb)
+          shopee=(standalone/ShopeeBlocker/packages/*.deb)
+          (( ${#fb[@]} == 1 && ${#audio[@]} == 1 && ${#shopee[@]} == 1 )) || exit 1
+          plugins=()
+          while IFS= read -r path; do plugins+=("$path"); done < staging/extensions.txt
+          logos=(resources/logo/fbplus_*.png)
+          extras=()
+          if [[ -f staging/icon-merge.plist ]]; then extras+=(-l staging/icon-merge.plist); fi
+          if [[ -n "$CUSTOM_BUNDLE_ID" ]]; then extras+=(-b "$CUSTOM_BUNDLE_ID"); fi
+          cyan -i test/com.facebook.Facebook.ipa -o staging/Facebook-Triple-Tweak-UNSIGNED.ipa \
+            -f "${fb[0]}" "${audio[0]}" "${shopee[0]}" \
+            "${logos[@]}" "${plugins[@]}" "${extras[@]}" -uwsgq
+          unzip -tq staging/Facebook-Triple-Tweak-UNSIGNED.ipa >/dev/null
+
+      - name: Upload test IPA and DEBs (no release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Facebook-Triple-Tweak-2ndnext
+          path: |
+            staging/Facebook-Triple-Tweak-UNSIGNED.ipa
+            packages/*rootless.deb
+            standalone/FBAudioFix/packages/*.deb
+            standalone/ShopeeBlocker/packages/*.deb
+          if-no-files-found: error
+          retention-days: 3
+; then
+            echo "::error::ZIP is valid but Payload/<App>.app/Info.plist is missing"
+            exit 1
+          fi
 
       - name: Install build tools
         run: |
