@@ -61,6 +61,7 @@ FBP_VERSION := $(shell awk -F': ' '/^Version:/{print $$2; exit}' control)
 
 FacebookPlus_CFLAGS  = -fobjc-arc -Wno-deprecated-declarations \
 	-DFBP_VERSION='@"$(FBP_VERSION)"' \
+	-DFBP_USE_ROOTLESS_PATHS=$(FBP_USE_ROOTLESS_PATHS) \
 	-Isrc/Core -Isrc/UI -Isrc/UI/Toast -Isrc/UI/Sheet -Isrc/Settings \
 	-Isrc/Features -Isrc/Features/AppChrome -Isrc/Features/AppIcons \
 	-Isrc/Features/Calls -Isrc/Features/Downloads -Isrc/Features/Feed \
