@@ -121,13 +121,11 @@ static void FBPHideOverlaysForWindow(UIWindow *window) {
         if (!overlay)
             continue;
 
-        // Only restore views that our feature actually changed.
-        // Facebook may intentionally hide an overlay for its own transitions.
-        if (!overlay.hidden) {
+        if (!overlay.hidden)
             overlay.hidden = YES;
-            FBPSetViewHiddenByUs(overlay, YES);
-            [gHiddenOverlays addObject:overlay];
-        }
+
+        FBPSetViewHiddenByUs(overlay, YES);
+        [gHiddenOverlays addObject:overlay];
     }
 }
 

@@ -6,6 +6,11 @@ on:
     branches: [2ndnext]
     paths:
       - '.github/workflows/build-roothide.yml'
+      - 'Makefile'
+      - 'build.sh'
+      - 'control'
+      - 'src/**'
+      - 'resources/**'
 
 permissions:
   contents: read

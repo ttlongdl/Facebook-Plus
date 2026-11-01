@@ -4,23 +4,21 @@
 
   <p>
     <strong>The ultimate privacy and enhancement tweak for the Facebook iOS app.</strong><br>
-    <em>Quieten your feed, watch stories anonymously, download Reels & Stories, confirm interactions, and customize the app's appearance.</em>
+    <em>Quieten your feed, watch stories anonymously, download Reels & Stories, block incoming calls, confirm interactions, and customize the app's appearance.</em>
   </p>
 
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square"></a>
     <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2017.0%2B-lightgrey.svg?style=flat-square">
-    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.2--2-success.svg?style=flat-square">
+    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.3--1-success.svg?style=flat-square">
   </p>
 </div>
 
 ---
 
-**Published fork release: v1.0.2-2** — upstream-first Facebook Plus with selective Story/Reels downloader fixes, Vietnamese language selection, and three LinkBridge URL routes. Tested on iPhone 12 Pro (Dopamine rootless); tested alongside standalone FBAudioFix v0.3.20 and ShopeeBlocker. The triple-tweak IPA and Open in Facebook Safari extension have also been tested on iPhone 18 Pro. The two legacy bridge aliases have not been independently verified. OLED experiments from the old fork and the previously embedded FBAudioFix source are intentionally not ported. The built-in update checker follows upstream SHAJON-404 releases, not fork tags.
+**Fork release: v1.0.3-1** — based on the newer upstream source snapshot (including Call Blocker, full-screen settings and rewritten LinkBridge), with selectively restored Story/Reels fixes, Vietnamese selector and FBAudioFix deep-link notification. The release number is the fork's independent version identifier, not the upstream source commit version. Tested as a signed triple-tweak IPA on Facebook 585.0.0: Safari Open in Facebook, FBAudioFix background audio, Story/Reels downloads and Files sharing. Rootless, Rootfull and RootHide DEBs passed GitHub Actions compilation; on-device DEB installation has not yet been verified. FBAudioFix and ShopeeBlocker remain standalone, not embedded in Facebook-Plus.
 
-**Packaging:** Facebook Plus, [FBAudioFix](https://github.com/ttlongdl/FBAudioFix), and [ShopeeBlocker](https://github.com/ttlongdl/ShopeeBlocker) remain three separate tweaks. For a combined sideload IPA, use the [Facebook-IPA-Patcher release workflow](https://github.com/ttlongdl/Facebook-IPA-Patcher/actions/workflows/patch-facebook.yml) (manual, versioned release) and sign the resulting IPA with your own provisioning. The older `Build Facebook Plus (.ipa)` workflow builds FBPlus only and may create a draft release; it is not the triple-tweak pipeline.
-
-**Release automation:** [Publish Facebook Plus fork DEBs](.github/workflows/release-fork.yml) reads the version from `control`, builds Rootless, Rootfull and RootHide packages, validates versions and publishes `v<control-version>`. The [APT publish workflow](https://github.com/ttlongdl/repo/actions/workflows/publish-fbplus-roothide.yml) reads the latest published FBPlus release and indexes its Rootless and RootHide packages. The [IPA Patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher) also resolves the latest published FBPlus tag and checks it against `control`. These workflows are manual; update `control`, publish the three DEBs, then run APT and IPA pipelines. The standalone FBAudioFix/ShopeeBlocker repos are still built from their current default branches in the IPA pipeline.
+**Release automation:** [Publish fork DEBs](.github/workflows/release-fork.yml) creates three versioned packages and GitHub tag `v1.0.3-1`. The [APT publisher](https://github.com/ttlongdl/repo/actions/workflows/publish-fbplus-roothide.yml) and [triple-tweak IPA patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher/actions/workflows/patch-facebook.yml) are separate manual workflows. The IPA patcher names output `FB <Facebook version> Plus v1.0.3-1 (Triple-Tweak).ipa` and enables Files sharing.
 
 ## ✨ Features
 
@@ -38,19 +36,23 @@
     </tr>
     <tr>
       <td nowrap>🎬 <b>Reels</b></td>
-      <td><b>Confirm before liking</b><br><b>Hide overlay</b> — one tap strips likes, comments, share & caption, leaving just the video<br>Save <b>Reels</b> to Photos</td>
+      <td><b>Confirm before liking</b><br><b>Hide overlay</b> — one tap strips likes, comments, share & caption, leaving just the clean video<br>Save <b>Reels</b> to Photos</td>
     </tr>
     <tr>
       <td nowrap>📖 <b>Stories</b></td>
-      <td>Watch stories anonymously (Ghost Mode)<br>Disable auto-advance<br>Hide Story Suggestions<br> Save <b>Stories</b> (video & photo) to Photos</td>
+      <td>Watch stories anonymously (Ghost Mode)<br>Disable auto-advance<br>Hide Story Suggestions<br>Save <b>Stories</b> (video & photo) to Photos</td>
+    </tr>
+    <tr>
+      <td nowrap>📞 <b>Calls & Privacy</b></td>
+      <td><b>Incoming Call Blocker</b> — silently block incoming VoIP / Messenger calls inside Facebook without disturbing your app experience</td>
     </tr>
     <tr>
       <td nowrap>🧭 <b>Links</b></td>
-      <td>Open external links in your <b>default browser</b> instead of the in-app browser<br><b>Open in Facebook</b> Safari extension — reopens facebook.com links from Safari in the app, on the <b>exact Reel / post / photo / story</b></td>
+      <td>Open external links in your <b>default browser</b> instead of the in-app browser<br><b>Open in Facebook</b> Safari extension — reopens facebook.com links from Safari in the app, routing directly to the <b>exact Reel / post / photo / story destination</b> (including FaceWeb deep links)</td>
     </tr>
     <tr>
       <td nowrap>🎨 <b>Appearance</b></td>
-      <td><b>OLED Dark Mode</b> (true black — keeps post dividers, avatars & the status bar legible)<br>Custom App-Icon Picker</td>
+      <td><b>OLED Dark Mode</b> (true black — preserves post dividers, rounded avatars & status bar legibility)<br>Custom App-Icon Picker with multiple alternate icons</td>
     </tr>
     <tr>
       <td nowrap>🔔 <b>Updates</b></td>
@@ -59,7 +61,7 @@
   </tbody>
 </table>
 
-💡 **Settings:** Long-press any **tab bar item** (classic or the new iOS 26 liquid-glass bar), the **"facebook" wordmark**, or the **native Facebook settings button**.
+💡 **Dedicated Settings Page:** Access the dedicated full-screen tweak settings anytime by long-pressing any **tab bar item** (classic or modern liquid-glass bar), long-pressing the **"facebook" wordmark**, or via the **native Facebook settings entry**.
 
 ---
 
@@ -71,9 +73,15 @@ Contributions and suggestions are welcome — open an issue or a pull request.
 
 ---
 
+## 🔒 Security & Disclaimer
+
+Please read **[SECURITY.md](SECURITY.md)** for our security policy, account safety guidelines, and disclaimer of warranty/liability. Use Facebook Plus at your own risk.
+
+---
+
 ## 🚀 Installation
 
-Download the pre-built `.ipa` file from the **[Releases](../../releases)** section and install it on your device using **Feather**, **Ksing**, or any other sideloading tool of your choice.
+Download the pre-built `.ipa` file from the **[Releases](../../releases)** section and install it on your device using **Feather**, **Ksing**, **AltStore**, **TrollStore**, or any other sideloading tool of your choice.
 
 ## ⚡ Build your own IPA with GitHub Actions
 
@@ -150,8 +158,8 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
      - builds every Safari web extension under `OpenInFacebookSafariExtension/`
        from source and injects the resulting `.appex` into the app's `PlugIns/`;
      - merges any custom app icons (`fbplus_*.png` in `resources/logo/`) into
-       `CFBundleAlternateIcons` via `scripts/icon_plist.py`, preserving
-       Facebook's native icons;
+     `CFBundleAlternateIcons` via `scripts/icon_plist.py`, preserving
+     Facebook's native icons;
      - fakesigns every injected binary for sideloading.
 
 
@@ -173,7 +181,7 @@ This writes a per-machine `.clangd` (with your theos path and SDK baked in) and 
 ## 🏗️ Project Architecture
 
 ```text
-├── Localizations       # Translations (ar, bn, de, es, fr, hi, id, it, ja, ko, etc.)
+├── Localizations       # Translations (ar, bn, de, es, fr, hi, id, it, ja, ko, zh-Hant, etc.)
 ├── OpenInFacebookSafariExtension  # Safari web extension built into PlugIns ("Open in Facebook")
 ├── resources           # Assets (App icons, SVGs, and asset bundles)
 │   ├── bundle          # Compiled UI images and tweak resources
@@ -182,22 +190,23 @@ This writes a per-machine `.clangd` (with your theos path and SDK baked in) and 
 ├── scripts             # Python utility scripts (e.g., icon merging, svg rendering)
 ├── src                 # Tweak source code
 │   ├── Core            # Constructor, preferences, and resources
-│   ├── Features        # All the hooks for modifying the Facebook app:
-│   │   ├── AppChrome   # UI settings gesture (TabBar & Settings Button)
+│   ├── Features        # All hooks & feature implementations:
+│   │   ├── AppChrome   # UI settings gesture (TabBar, Wordmark long-press & Settings Button)
 │   │   ├── AppIcons    # Custom app-icon picker logic
+│   │   ├── Calls       # Incoming Call Blocker (PushKit & CallKit interceptors)
 │   │   ├── Downloads   # Reel & Story media downloaders (save to Photos)
-│   │   ├── Feed        # Feed-related hooks (ads, suggestions, Reels)
+│   │   ├── Feed        # Feed-related hooks (ads, suggestions, Reels, Stories removal)
 │   │   ├── Language    # UI language override hooks
 │   │   ├── LikeConfirmation # Confirm before liking logic
-│   │   ├── Links       # Open external links in the default browser (not the IAB)
-│   │   ├── OLED        # True dark mode implementation
+│   │   ├── Links       # Open external links in default browser & inbound link bridge
+│   │   ├── OLED        # True black dark mode implementation
 │   │   ├── Onboarding  # Welcome screen controller
 │   │   ├── Stories     # Story-related hooks (Ghost mode, auto-advance block)
 │   │   └── Update      # In-app update checker + update screen (GitHub Releases)
 │   ├── PluginsInject   # Sideload compatibility layer (Keychain / App-Group / CloudKit)
-│   ├── Settings        # The Facebook Plus in-app settings UI
+│   ├── Settings        # Dedicated full-screen Facebook Plus settings UI
 │   └── UI              # Shared UI components
-│       ├── Sheet       # Bottom sheet controllers
+│       ├── Sheet       # Detent & Presentation controllers
 │       └── Toast       # HUD / Progress pills
 └── test                # Input IPA directory and test scripts
 ```

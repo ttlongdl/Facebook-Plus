@@ -80,4 +80,4 @@ jobs:
             "packages/Facebook-Plus-v${VERSION}-roothide.deb" \
             --target "$GITHUB_SHA" \
             --title "Facebook Plus v${VERSION}" \
-            --notes "Upstream-first fork with Story/Reels downloader fixes, Vietnamese language selector, LinkBridge aliases and Safari extension support. FBAudioFix and ShopeeBlocker remain standalone; neither is bundled into these FBPlus DEBs. Tested rootless and as a combined IPA; legacy deep-link aliases require separate verification."
+            --notes "Upstream-first fork with Story/Reels fixes, Vietnamese selector, and Safari LinkBridge support. FBAudioFix and ShopeeBlocker remain standalone; neither is bundled into these FBPlus DEBs. Tested rootless and as a combined IPA; legacy deep-link aliases require separate verification."

@@ -21,11 +21,9 @@
 static void (*gOrigStoryDidStartPlaying)(id, SEL, id, id) = NULL;
 static BOOL gStoryHookInstalled = NO;
 
-
 static __weak UIViewController *gStoryController = nil;
 static __weak UIView *gStoryMediaView = nil;
 static NSURL *gStoryVideoURL = nil;
-static UIImage *gStoryRenderedImage = nil;
 static NSString *gStoryVideoID = nil;
 static BOOL gStoryMediaIsVideo = NO;
 static UIButton *gStoryDownloadButton = nil;
@@ -61,7 +59,6 @@ static id FBPStoryObjectGetter(id obj, NSString *name) {
         return nil;
     }
 }
-
 
 static NSURL *FBPStoryResponseImageURLFromMediaView(id mediaView) {
     if (![mediaView isKindOfClass:UIView.class]) return nil;
@@ -248,19 +245,6 @@ didCompleteWithError:(NSError *)error {
 
 static NSMutableSet *gStoryDownloadDelegates = nil;
 
-static UIImage *FBPStoryRenderMediaView(UIView *view) {
-    if (!view || CGRectIsEmpty(view.bounds)) return nil;
-    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
-    format.scale = UIScreen.mainScreen.scale;
-    format.opaque = YES;
-    UIGraphicsImageRenderer *renderer =
-        [[UIGraphicsImageRenderer alloc] initWithBounds:view.bounds format:format];
-    return [renderer imageWithActions:^(__unused UIGraphicsImageRendererContext *ctx) {
-        BOOL drew = [view drawViewHierarchyInRect:view.bounds afterScreenUpdates:NO];
-        if (!drew) [view.layer renderInContext:ctx.CGContext];
-    }];
-}
-
 static void FBPStoryStartDownload(void) {
     if (!FBPStoryDownloaderEnabled()) { FBPStoryHideButton(); return; }
     if (gStoryDownloading || !gStoryVideoURL) return;
@@ -431,7 +415,6 @@ static BOOL FBPStoryCaptureCurrentVideo(id controller, id mediaView) {
     gStoryController = controller;
     gStoryMediaView = mediaView;
     gStoryMediaIsVideo = YES;
-    gStoryRenderedImage = nil;
     gStoryVideoURL = [url copy];
     gStoryVideoID = [videoID isKindOfClass:NSString.class] ? [videoID copy] : [videoID description];
 
@@ -505,22 +488,11 @@ static void FBPStoryCaptureCurrentPhoto(id controller, id mediaView) {
         if (!url) {
             return;
         }
-        if ([mediaView isKindOfClass:UIView.class]) {
-            gStoryRenderedImage = FBPStoryRenderMediaView((UIView *)mediaView);
-            if (gStoryRenderedImage) {
-            }
-        }
     }
 
     gStoryController = controller;
     gStoryMediaView = mediaView;
     gStoryMediaIsVideo = NO;
-    // Keep the rendered fallback for composed/other_media_type Stories.
-    // Direct photo URLs still clear it so normal Stories retain original CDN downloads.
-    if ([raw isKindOfClass:NSURL.class] || ([raw isKindOfClass:NSString.class] &&
-        [[NSURL URLWithString:raw].scheme.lowercaseString hasPrefix:@"http"])) {
-        gStoryRenderedImage = nil;
-    }
     gStoryVideoURL = [url copy];
     gStoryVideoID = [NSString stringWithFormat:@"photo-%lu",
                      (unsigned long)url.absoluteString.hash];
