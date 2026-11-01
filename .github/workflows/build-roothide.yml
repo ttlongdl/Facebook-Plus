@@ -1,0 +1,52 @@
+name: Build Facebook Plus RootHide DEB
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [2ndnext]
+    paths:
+      - '.github/workflows/build-roothide.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    env:
+      THEOS: ${{ github.workspace }}/theos
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install RootHide Theos
+        run: |
+          set -euo pipefail
+          brew install dpkg ldid xz
+          git clone --depth 1 --recurse-submodules https://github.com/roothide/theos.git "$THEOS"
+          test -f "$THEOS/makefiles/common.mk"
+      - name: Build RootHide only
+        run: |
+          set -euo pipefail
+          SCHEMES="roothide" ./build.sh
+      - name: Validate package and paths
+        run: |
+          set -euo pipefail
+          VERSION="$(awk -F': ' '/^Version:/{print $2; exit}' control)"
+          DEB="packages/Facebook-Plus-v${VERSION}-roothide.deb"
+          test -s "$DEB"
+          test "$(dpkg-deb -f "$DEB" Package)" = "com.shajon.fbplus"
+          test "$(dpkg-deb -f "$DEB" Version)" = "$VERSION"
+          test "$(dpkg-deb -f "$DEB" Architecture)" = "iphoneos-arm64e"
+          dpkg-deb --contents "$DEB" | tee /tmp/fbplus-roothide-files.txt
+          grep -Fq 'FacebookPlus.dylib' /tmp/fbplus-roothide-files.txt
+          grep -Fq 'FacebookPlus.bundle' /tmp/fbplus-roothide-files.txt
+          dpkg-deb -f "$DEB" Package Version Architecture Depends
+          shasum -a 256 "$DEB"
+      - name: Upload verified RootHide artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Facebook-Plus-RootHide
+          path: packages/Facebook-Plus-v*-roothide.deb
+          if-no-files-found: error
+          retention-days: 30
