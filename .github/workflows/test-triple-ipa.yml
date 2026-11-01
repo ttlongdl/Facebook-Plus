@@ -119,6 +119,41 @@ jobs:
             "${logos[@]}" "${plugins[@]}" "${extras[@]}" -uwsgq
           unzip -tq staging/Facebook-Triple-Tweak-UNSIGNED.ipa >/dev/null
 
+      - name: Enable and verify Files app sharing in unsigned IPA
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, plistlib, tempfile, zipfile
+          ipa = "staging/Facebook-Triple-Tweak-UNSIGNED.ipa"
+          fd, tmp = tempfile.mkstemp(suffix=".ipa", dir="staging")
+          os.close(fd)
+          try:
+              found = 0
+              with zipfile.ZipFile(ipa, "r") as source, zipfile.ZipFile(tmp, "w") as target:
+                  for entry in source.infolist():
+                      data = source.read(entry.filename)
+                      if entry.filename.startswith("Payload/") and entry.filename.count("/") == 2 and entry.filename.endswith(".app/Info.plist"):
+                          info = plistlib.loads(data)
+                          info["UIFileSharingEnabled"] = True
+                          info["LSSupportsOpeningDocumentsInPlace"] = True
+                          data = plistlib.dumps(info, fmt=plistlib.FMT_BINARY)
+                          found += 1
+                      target.writestr(entry, data)
+              if found != 1:
+                  raise RuntimeError(f"Expected one root app Info.plist, found {found}")
+              os.replace(tmp, ipa)
+          finally:
+              if os.path.exists(tmp):
+                  os.unlink(tmp)
+          with zipfile.ZipFile(ipa) as archive:
+              names = [n for n in archive.namelist() if n.startswith("Payload/") and n.count("/") == 2 and n.endswith(".app/Info.plist")]
+              info = plistlib.loads(archive.read(names[0]))
+              assert info.get("UIFileSharingEnabled") is True
+              assert info.get("LSSupportsOpeningDocumentsInPlace") is True
+              print("Verified: Files app sharing and open-in-place enabled")
+          PY
+          unzip -tq staging/Facebook-Triple-Tweak-UNSIGNED.ipa >/dev/null
+
       - name: Upload test IPA and DEBs (no release)
         uses: actions/upload-artifact@v4
         with:
