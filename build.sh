@@ -40,6 +40,7 @@ scheme_value() {
 	case "$1" in
 		rootless) printf '%s' "rootless" ;;
 		rootfull) printf '%s' "" ;;
+		roothide) printf '%s' "roothide" ;;
 		*)        return 1 ;;
 	esac
 }
@@ -78,7 +79,7 @@ build_scheme() {
 
 for label in ${SCHEMES}; do
 	if ! scheme_value "$label" >/dev/null 2>&1; then
-		echo "error: unknown scheme '${label}' (valid: rootless rootfull)" >&2
+		echo "error: unknown scheme '${label}' (valid: rootless rootfull roothide)" >&2
 		exit 1
 	fi
 	build_scheme "${label}"
