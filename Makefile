@@ -48,6 +48,13 @@ FacebookPlus_FILES = \
 	src/PluginsInject/SideloadFix.xm \
 	fishhook/fishhook.c
 
+# Enable rootless path handling only for jailbreak package schemes.
+ifneq ($(filter rootless roothide,$(THEOS_PACKAGE_SCHEME)),)
+FBP_USE_ROOTLESS_PATHS := 1
+else
+FBP_USE_ROOTLESS_PATHS := 0
+endif
+
 # The tweak's own version, read from control, exposed to the code as FBP_VERSION
 # (an NSString literal) so the update checker can compare against GitHub releases.
 FBP_VERSION := $(shell awk -F': ' '/^Version:/{print $$2; exit}' control)
