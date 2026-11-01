@@ -144,11 +144,11 @@ static void FBPHideOverlayChildrenOf(UIView *container) {
                 containsString:@"ShortsViewerOverlay"])
             continue;
 
-        if (!sub.hidden)
+        if (!sub.hidden) {
             sub.hidden = YES;
-
-        FBPSetViewHiddenByUs(sub, YES);
-        [gHiddenOverlays addObject:sub];
+            FBPSetViewHiddenByUs(sub, YES);
+            [gHiddenOverlays addObject:sub];
+        }
     }
 }
 
@@ -160,8 +160,10 @@ static void FBPUnhideAllOverlays(void) {
     for (UIView *overlay in gHiddenOverlays.allObjects) {
         if (!overlay)
             continue;
-        FBPSetViewHiddenByUs(overlay, NO);
-        overlay.hidden = NO;
+        if (FBPViewHiddenByUs(overlay)) {
+            FBPSetViewHiddenByUs(overlay, NO);
+            overlay.hidden = NO;
+        }
     }
 
     [gHiddenOverlays removeAllObjects];
