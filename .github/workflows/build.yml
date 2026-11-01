@@ -52,6 +52,19 @@ jobs:
         run: ./build.sh
 
 
+      - name: Verify release package versions
+        run: |
+          set -euo pipefail
+          VERSION="$(awk -F': ' '/^Version:/{print $2; exit}' control)"
+          test -n "$VERSION"
+          for scheme in rootless rootfull; do
+            pkg="packages/Facebook-Plus-v${VERSION}-${scheme}.deb"
+            test -s "$pkg"
+            actual="$(dpkg-deb -f "$pkg" Version)"
+            test "$actual" = "$VERSION" || { echo "::error::${pkg}: expected ${VERSION}, got ${actual}"; exit 1; }
+            echo "Verified ${pkg} Version=${actual}"
+          done
+
       - name: Upload built packages
         uses: actions/upload-artifact@v4
         with:
