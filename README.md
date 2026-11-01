@@ -79,48 +79,29 @@ Please read **[SECURITY.md](SECURITY.md)** for our security policy, account safe
 
 ---
 
-## 🚀 Installation
+## 🚀 Install Facebook Plus v1.0.3-1
 
-Download the pre-built `.ipa` file from the **[Releases](../../releases)** section and install it on your device using **Feather**, **Ksing**, **AltStore**, **TrollStore**, or any other sideloading tool of your choice.
+This is the **ttlongdl fork** of [SHAJON-404/Facebook-Plus](https://github.com/SHAJON-404/Facebook-Plus). It retains the newer upstream Call Blocker, full-screen settings, and rewritten LinkBridge, with selected fork fixes for Story/Reels, Vietnamese language selection, and a notification used by standalone FBAudioFix. The fork version `1.0.3-1` is independent of the upstream source version.
 
-## ⚡ Build your own IPA with GitHub Actions
+- **Jailbroken devices:** Download [v1.0.3-1 DEBs](https://github.com/ttlongdl/Facebook-Plus/releases/tag/v1.0.3-1) for Rootless, Rootfull, or RootHide. Rootless (`iphoneos-arm64`) and RootHide (`iphoneos-arm64e`) are also published to the [ttlongdl APT repository](https://github.com/ttlongdl/repo).
+- **Sideloaded Facebook:** Use the [Facebook IPA Patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher), which injects Facebook Plus, **standalone** FBAudioFix 0.3.20, standalone ShopeeBlocker, and the Safari **Open in Facebook** extension into a decrypted Facebook IPA supplied by the user. The output uses `FB <Facebook-version> Plus v<FBPlus-version>.ipa`; for example, `FB 585.0.0 Plus v1.0.3-1.ipa`. Sign the IPA and its extension with Feather or another compatible signer.
+- **Feather personal source:** The [Sync Feather Source workflow](https://github.com/ttlongdl/Facebook-IPA-Patcher/actions/workflows/sync-feather-source.yml) updates [personal-source.json](https://github.com/ttlongdl/feather/blob/main/personal-source.json) separately after the IPA is published.
 
-No Mac required. The **Build Facebook Plus (.ipa)** workflow builds the tweak from
-source and injects it into a decrypted Facebook IPA that **you** provide, then
-publishes the result as a draft release on your fork.
+**Compatibility and test status:** Rootless, Rootfull, and RootHide packages passed GitHub Actions builds. A signed Facebook 585.0.0 triple-tweak test IPA passed on-device checks for Safari deep links, FBAudioFix background playback, Story/Reels downloads, and Files app visibility. DEB runtime behavior and other Facebook/iOS versions may differ. The standalone audio and Shopee tweaks are **not included** in Facebook Plus DEBs.
 
-> [!IMPORTANT]
-> You must supply your own **decrypted** Facebook `.ipa`. We cannot distribute one
-> for legal reasons.
+**Files sharing:** The triple-tweak IPA Patcher enables `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace` in the Facebook app's `Info.plist`. This exposes the app's Documents folder in Files, not its entire sandbox.
 
-**First time only:**
+## ⚡ GitHub Actions workflows
 
-1. **Fork** this repository (top-right **Fork** button).
-2. On your fork, open the **Actions** tab and click **I understand my workflows, go ahead and enable them**.
+| Workflow | Purpose |
+|---|---|
+| [Build Tweak (.deb)](.github/workflows/build.yml) | CI compile checks for Rootless / Rootfull |
+| [Build Facebook Plus RootHide DEB](.github/workflows/build-roothide.yml) | RootHide compile checks |
+| [Publish Facebook Plus fork DEBs](.github/workflows/release-fork.yml) | Manual versioned GitHub release of three DEBs |
+| [Test Triple-Tweak Facebook IPA](.github/workflows/test-triple-ipa.yml) | Manual unsigned IPA integration test; does **not** publish a release |
+| [Facebook IPA Patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher/actions/workflows/patch-facebook.yml) | Release-driven IPA creation from a user-provided decrypted Facebook IPA |
 
-**To build:**
-
-1. If your fork is behind, click **Sync fork → Update branch**.
-2. Go to **Actions → Build Facebook Plus (.ipa)**.
-3. Click **Run workflow** on the right.
-4. Fill in the inputs:
-   - **Direct download URL to the decrypted Facebook IPA** — upload your decrypted
-     `.ipa` to [**filebin.net**](https://filebin.net) and paste the **direct
-     download link** to the file. filebin is the recommended host and the one this
-     workflow has been tested with. A link to a *web page* instead of the file
-     itself will fail validation.
-   - **Bundle identifier** *(optional)* — leave blank to keep `com.facebook.Facebook`.
-     Set a custom id to install alongside the stock app. The tweak is
-     bundle-id-agnostic, so it activates under whatever id you choose — no other
-     change needed.
-5. Click **Run workflow** and wait for it to finish (≈10–15 min).
-6. Download the IPA from your fork's **Releases** section. The release is created as
-   a **draft** — open it, review, and publish. (If you don't see Releases, append
-   `/releases` to your fork's URL, e.g. `github.com/<you>/Facebook-Plus/releases`.)
-
-The workflow reuses [`build.sh`](build.sh), so your IPA gets the exact same
-injection as a local build — the tweak, the custom app-icons, and the bundled
-**Open in Facebook** Safari extension, all fakesigned for sideloading.
+The `release-fork.yml` workflow requires a `control` version in `major.minor.patch-build` format and publishes a tag `v<version>`. To update the APT source, run the separate [APT publishing workflow](https://github.com/ttlongdl/repo/actions/workflows/publish-fbplus-roothide.yml) **after** the DEB release succeeds.
 
 ## 🛠️ Building from Source & Automated Injection
 
@@ -128,7 +109,7 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
 
 1. **Clone the repository** (including submodules):
    ```bash
-   git clone --recursive https://github.com/SHAJON-404/Facebook-Plus.git
+   git clone --recursive https://github.com/ttlongdl/Facebook-Plus.git
    cd Facebook-Plus
    ```
 
@@ -139,7 +120,7 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
    ```
 
 3. **Automated Pipeline (`build.sh`)**:
-   - Run `./build.sh` to build **every packaging scheme**, or narrow it with the
+   - Run `./build.sh` to build the default schemes, or narrow it with the
      `SCHEMES` variable (e.g. `SCHEMES="rootless rootfull" ./build.sh`).
    - To also produce an injected `.ipa`, place a decrypted Facebook `.ipa` at
      `test/com.facebook.Facebook.ipa` before running.
@@ -151,6 +132,7 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
      |---|---|
      | `rootless` | `Facebook-Plus-v<version>-rootless.deb` |
      | `rootfull` | `Facebook-Plus-v<version>-rootfull.deb` |
+     | `roothide` | `Facebook-Plus-v<version>-roothide.deb` (RootHide Theos required) |
 
    - If a decrypted `.ipa` is present, injects the **rootless** build into it with
      `cyan` and writes `packages/Facebook-Plus-v<facebook-version>-rootless.ipa`.
