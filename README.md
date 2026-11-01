@@ -10,13 +10,13 @@
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square"></a>
     <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2017.0%2B-lightgrey.svg?style=flat-square">
-    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.3-success.svg?style=flat-square">
+    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.3--1-success.svg?style=flat-square">
   </p>
 </div>
 
 ---
 
-## ✨ Features
+**Fork release: v1.0.3-1** — based on the newer upstream source snapshot (including Call Blocker, full-screen settings and rewritten LinkBridge), with selectively restored Story/Reels fixes, Vietnamese selector and FBAudioFix deep-link notification. The release number is the fork's independent version identifier, not the upstream source commit version. Tested as a signed triple-tweak IPA on Facebook 585.0.0: Safari Open in Facebook, FBAudioFix background audio, Story/Reels downloads and Files sharing. Rootless, Rootfull and RootHide DEBs passed GitHub Actions compilation; on-device DEB installation has not yet been verified. FBAudioFix and ShopeeBlocker remain standalone, not embedded in Facebook-Plus.\n\n**Release automation:** [Publish fork DEBs](.github/workflows/release-fork.yml) creates three versioned packages and GitHub tag `v1.0.3-1`. The [APT publisher](https://github.com/ttlongdl/repo/actions/workflows/publish-fbplus-roothide.yml) and [triple-tweak IPA patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher/actions/workflows/patch-facebook.yml) are separate manual workflows. The IPA patcher names output `FB <Facebook version> Plus v1.0.3-1 (Triple-Tweak).ipa` and enables Files sharing.\n\n## ✨ Features
 
 <table>
   <thead>
