@@ -183,16 +183,20 @@ This writes a per-machine `.clangd` (with your theos path and SDK baked in) and 
 ```text
 ├── Localizations       # Translations (ar, bn, de, es, fr, hi, id, it, ja, ko, pl, pt-BR, ru, tr, vi, zh-Hans, zh-Hant)
 ├── OpenInFacebookSafariExtension  # Safari web extension built into PlugIns ("Open in Facebook")
-├── resources           # Assets (App icons, SVGs, and asset bundles)
+├── resources           # Assets (App icons, fonts, SVGs, and asset bundles)
 │   ├── bundle          # Compiled UI images and tweak resources
 │   ├── fonts           # Bundled custom fonts offered by the Fonts picker
 │   ├── logo            # Custom app-icons drop folder for build.sh injection
+│   ├── fonts           # Bundled optional font files
 │   └── svg             # Source vector graphics
 ├── scripts             # Python utility scripts (e.g., icon merging, svg rendering)
 ├── src                 # Tweak source code
 │   ├── Core            # Constructor, preferences, and resources
 │   ├── Features        # All hooks & feature implementations:
 │   │   ├── Ads         # Feed, video, story & Marketplace ad removal (feed chokepoint + RN/GraphQL)
+│   │   ├── Ads         # Sponsored and sponsoredData-backed ad filtering
+│   │   ├── Confirmations # Shared confirmation presentation and actions
+│   │   ├── Fonts       # Custom font selection
 │   │   ├── AppChrome   # UI settings gesture (TabBar, Wordmark long-press & Settings Button)
 │   │   ├── AppIcons    # Custom app-icon picker logic
 │   │   ├── Calls       # Incoming Call Blocker (PushKit & CallKit interceptors)
@@ -208,7 +212,7 @@ This writes a per-machine `.clangd` (with your theos path and SDK baked in) and 
 │   │   ├── Stories     # Story-related hooks (Ghost mode, auto-advance block)
 │   │   └── Update      # In-app update checker + update screen (GitHub Releases)
 │   ├── PluginsInject   # Sideload compatibility layer (Keychain / App-Group / CloudKit)
-│   ├── Settings        # Dedicated full-screen Facebook Plus settings UI
+│   ├── Settings        # Two-level Facebook Plus settings UI
 │   └── UI              # Shared UI components
 │       ├── Sheet       # Detent & Presentation controllers
 │       └── Toast       # HUD / Progress pills
