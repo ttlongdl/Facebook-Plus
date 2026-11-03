@@ -397,6 +397,7 @@ static NSArray<NSDictionary *> *FBPCategories(void) {
            kRowIcon : @"alert", kRowCategory : @[
             FBPSection(FBPL(@"footer.confirm"), @[
                 FBPSwitchRow(FBPKeyFeedLike, FBPL(@"row.feedlike.title"), FBPL(@"row.feedlike.desc"), @"alert"),
+                FBPSwitchRow(FBPKeyReelsLike, FBPL(@"row.reelslike.title"), nil, @"alert"),
                 FBPSwitchRow(FBPKeyConfirmComment, FBPL(@"row.confirmcomment.title"), FBPL(@"row.confirmcomment.desc"), @"alert"),
                 FBPSwitchRow(FBPKeyConfirmShare, FBPL(@"row.confirmshare.title"), FBPL(@"row.confirmshare.desc"), @"alert"),
                 FBPSwitchRow(FBPKeyConfirmPost, FBPL(@"row.confirmpost.title"), FBPL(@"row.confirmpost.desc"), @"alert"),

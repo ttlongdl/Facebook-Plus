@@ -204,6 +204,12 @@ static BOOL gConfirmedPassthrough = NO;
     UIView *match = nil;
     FBPConfirmKind kind = FBPConfirmKindForSender(sender, &match);
     NSString *key = FBPKeyForKind(kind);
+    // Fork behavior: Reels likes have their own toggle; upstream's other
+    // confirmation kinds and shared prompt handling remain unchanged.
+    if (kind == FBPConfirmKindLike && match &&
+        [match.accessibilityIdentifier isEqualToString:FBPAXReelsLikeButton]) {
+        key = FBPKeyReelsLike;
+    }
     if (!key || !FBPEnabled(key)) {
         %orig;
         return;

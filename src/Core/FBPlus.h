@@ -70,6 +70,7 @@ extern NSString *const FBPKeyReelsDownloaderEnabled;
 extern NSString *const FBPKeyStoryDownloaderEnabled;
 
 // Reels
+extern NSString *const FBPKeyReelsLike;         // Separate confirmation for Reels likes (fork)
 extern NSString *const FBPKeyReelsHideOverlay;  // Strip the Reels overlay (always on; no toggle)
 
 // Stories

@@ -36,6 +36,7 @@ NSString *const FBPKeyConfirmFollow    = @"confirmFollow";
 NSString *const FBPKeyConfirmPost      = @"confirmPost";
 NSString *const FBPKeyReelsDownloaderEnabled = @"reelsDownloaderEnabled";
 NSString *const FBPKeyStoryDownloaderEnabled = @"storyDownloaderEnabled";
+NSString *const FBPKeyReelsLike        = @"reelsLike";
 NSString *const FBPKeyReelsHideOverlay = @"reelsHideOverlay";
 NSString *const FBPKeyAnonymousStories = @"anonymousStories";
 NSString *const FBPKeyNoAutoNext       = @"noAutoNext";
