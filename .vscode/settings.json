@@ -1,11 +1,11 @@
 {
-  // Logos sources. Using "logos" language mode prevents C/Clang from treating
-  // %hook, %orig, and %group directives as invalid Objective-C syntax errors.
+  // Logos sources. Set to Objective-C++ so .xm and .xmi files get full syntax
+  // highlighting and support C++ syntax like extern "C", while .x remains Objective-C.
   "files.associations": {
-    "*.xm": "logos",
-    "*.xmi": "logos",
-    "*.x": "logos",
-    "*.xi": "logos",
+    "*.xm": "objective-cpp",
+    "*.xmi": "objective-cpp",
+    "*.x": "objective-c",
+    "*.xi": "objective-c",
     "*.pch": "objective-c"
   },
   // Generated and build output — noise in the file tree and in search results.

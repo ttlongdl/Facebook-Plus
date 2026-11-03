@@ -1,4 +1,4 @@
-TARGET := iphone:clang:latest:17.0
+TARGET := iphone:clang:latest:15.1
 # arm64 only. This targets iPhone 11 → latest, all sideloaded / re-signed: those
 # apps run in the arm64 slice even on A12+ (arm64e) devices — the arm64e slice is
 # reserved for Apple-signed platform binaries — so an injected arm64e slice would
@@ -31,10 +31,14 @@ FacebookPlus_FILES = \
 	src/Features/AppIcons/FBPAppIconController.m \
 	src/Features/Language/FBPLanguageController.m \
 	src/Features/Feed/FBPFeedHooks.xm \
+	src/Features/Ads/FBPAdsHooks.xm \
 	src/Features/Stories/FBPStoryHooks.xm \
 	src/Features/LikeConfirmation/FBPConfirmHooks.xm \
+	src/Features/Confirmations/FBPActionConfirm.mm \
 	src/Features/AppChrome/FBPChromeHooks.xm \
 	src/Features/OLED/FBPOLEDHooks.xm \
+	src/Features/Fonts/FBPFontHooks.xm \
+	src/Features/Fonts/FBPFontController.m \
 	src/Features/Downloads/FBPReelsDownloader.xm \
 	src/Features/Downloads/FBPStoryDownloader.xm \
 	src/Features/Links/FBPLinkHooks.xm \
@@ -48,27 +52,19 @@ FacebookPlus_FILES = \
 	src/PluginsInject/SideloadFix.xm \
 	fishhook/fishhook.c
 
-# Enable rootless path handling only for jailbreak package schemes.
-ifneq ($(filter rootless roothide,$(THEOS_PACKAGE_SCHEME)),)
-FBP_USE_ROOTLESS_PATHS := 1
-else
-FBP_USE_ROOTLESS_PATHS := 0
-endif
-
 # The tweak's own version, read from control, exposed to the code as FBP_VERSION
 # (an NSString literal) so the update checker can compare against GitHub releases.
 FBP_VERSION := $(shell awk -F': ' '/^Version:/{print $$2; exit}' control)
 
 FacebookPlus_CFLAGS  = -fobjc-arc -Wno-deprecated-declarations \
 	-DFBP_VERSION='@"$(FBP_VERSION)"' \
-	-DFBP_USE_ROOTLESS_PATHS=$(FBP_USE_ROOTLESS_PATHS) \
 	-Isrc/Core -Isrc/UI -Isrc/UI/Toast -Isrc/UI/Sheet -Isrc/Settings \
 	-Isrc/Features -Isrc/Features/AppChrome -Isrc/Features/AppIcons \
 	-Isrc/Features/Calls -Isrc/Features/Downloads -Isrc/Features/Feed \
-	-Isrc/Features/Language -Isrc/Features/LikeConfirmation \
+	-Isrc/Features/Fonts -Isrc/Features/Language -Isrc/Features/LikeConfirmation \
 	-Isrc/Features/Links -Isrc/Features/OLED -Isrc/Features/Onboarding \
 	-Isrc/Features/Stories -Isrc/Features/Update -Isrc/PluginsInject
-FacebookPlus_FRAMEWORKS = UIKit Foundation Photos QuartzCore CoreGraphics AVFoundation CoreMedia Security PushKit CallKit
+FacebookPlus_FRAMEWORKS = UIKit Foundation Photos QuartzCore CoreGraphics CoreText AVFoundation CoreMedia Security PushKit CallKit
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
@@ -144,6 +140,10 @@ compile-commands:
 		echo "    - unknown_type_name"; \
 		echo "    - undeclared_var_use"; \
 		echo "    - duplicate_decl_context"; \
+		echo "    - expected_unqualified_id"; \
+		echo "    - err_expected_unqualified"; \
+		echo "    - expected_either"; \
+		echo "    - missing_method_context"; \
 	} > .clangd
 	@echo "==> Recording compile commands with bear…"
 	@$(MAKE) clean >/dev/null

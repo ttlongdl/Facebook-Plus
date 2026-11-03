@@ -4,21 +4,17 @@
 
   <p>
     <strong>The ultimate privacy and enhancement tweak for the Facebook iOS app.</strong><br>
-    <em>Quieten your feed, watch stories anonymously, download Reels & Stories, block incoming calls, confirm interactions, and customize the app's appearance.</em>
+    <em>Quieten your feed, watch stories anonymously, download Reels & Stories, block incoming calls, confirm interactions, and customize the app's appearance and font.</em>
   </p>
 
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square"></a>
-    <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2017.0%2B-lightgrey.svg?style=flat-square">
-    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.3--1-success.svg?style=flat-square">
+    <img alt="Platform" src="https://img.shields.io/badge/Platform-iOS%2015.1%2B-lightgrey.svg?style=flat-square">
+    <img alt="Version" src="https://img.shields.io/badge/Version-1.0.4-success.svg?style=flat-square">
   </p>
 </div>
 
 ---
-
-**Fork release: v1.0.3-1** — based on the newer upstream source snapshot (including Call Blocker, full-screen settings and rewritten LinkBridge), with selectively restored Story/Reels fixes, Vietnamese selector and FBAudioFix deep-link notification. The release number is the fork's independent version identifier, not the upstream source commit version. Tested as a signed triple-tweak IPA on Facebook 585.0.0: Safari Open in Facebook, FBAudioFix background audio, Story/Reels downloads and Files sharing. Rootless, Rootfull and RootHide DEBs passed GitHub Actions compilation; on-device DEB installation has not yet been verified. FBAudioFix and ShopeeBlocker remain standalone, not embedded in Facebook-Plus.
-
-**Release automation:** [Publish fork DEBs](.github/workflows/release-fork.yml) creates three versioned packages and GitHub tag `v1.0.3-1`. The [APT publisher](https://github.com/ttlongdl/repo/actions/workflows/publish-fbplus-roothide.yml) and [triple-tweak IPA patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher/actions/workflows/patch-facebook.yml) are separate manual workflows. The IPA patcher names output `FB <Facebook version> Plus v1.0.3-1.ipa` and enables Files sharing.
 
 ## ✨ Features
 
@@ -32,11 +28,15 @@
   <tbody>
     <tr>
       <td nowrap>📰 <b>Feed</b></td>
-      <td>Remove Ads & Sponsored Posts<br>Hide "People you may know", Group & Page suggestions<br>Remove Reels carousel, Threads promo & <b>Stories</b> (tray + single cards)<br><b>Confirm before liking</b> (prevents accidental likes)</td>
+      <td>Remove Ads & Sponsored Posts (feed, video, stories & <b>Marketplace</b>)<br>Hide "People you may know", Group & Page suggestions<br>Remove Reels carousel, Threads promo & <b>Stories</b> (tray + single cards)</td>
+    </tr>
+    <tr>
+      <td nowrap>✅ <b>Confirmations</b></td>
+      <td>Opt-in prompts that catch accidental taps — a prompt appears before the action, Cancel stops it:<br><b>Like</b> (feed & Reels), <b>Comment</b>, <b>Share</b>, <b>Post</b>, <b>Friend request</b>, <b>Follow / Join</b></td>
     </tr>
     <tr>
       <td nowrap>🎬 <b>Reels</b></td>
-      <td><b>Confirm before liking</b><br><b>Hide overlay</b> — one tap strips likes, comments, share & caption, leaving just the clean video<br>Save <b>Reels</b> to Photos</td>
+      <td><b>Hide overlay (cinema mode)</b> — one tap strips likes, comments, share & caption <em>and</em> fades the bottom tab bar, leaving just the clean video<br>Save <b>Reels</b> to Photos</td>
     </tr>
     <tr>
       <td nowrap>📖 <b>Stories</b></td>
@@ -52,7 +52,7 @@
     </tr>
     <tr>
       <td nowrap>🎨 <b>Appearance</b></td>
-      <td><b>OLED Dark Mode</b> (true black — preserves post dividers, rounded avatars & status bar legibility)<br>Custom App-Icon Picker with multiple alternate icons</td>
+      <td><b>OLED Dark Mode</b> (true black — preserves post dividers, rounded avatars & status bar legibility)<br>Custom App-Icon Picker with multiple alternate icons<br><b>Custom Fonts</b> — replace the app's text font with a bundled or imported <code>.ttf</code>/<code>.otf</code>, with an adjustable size</td>
     </tr>
     <tr>
       <td nowrap>🔔 <b>Updates</b></td>
@@ -79,29 +79,48 @@ Please read **[SECURITY.md](SECURITY.md)** for our security policy, account safe
 
 ---
 
-## 🚀 Install Facebook Plus v1.0.3-1
+## 🚀 Installation
 
-This is the **ttlongdl fork** of [SHAJON-404/Facebook-Plus](https://github.com/SHAJON-404/Facebook-Plus). It retains the newer upstream Call Blocker, full-screen settings, and rewritten LinkBridge, with selected fork fixes for Story/Reels, Vietnamese language selection, and a notification used by standalone FBAudioFix. The fork version `1.0.3-1` is independent of the upstream source version.
+Download the pre-built `.ipa` file from the **[Releases](../../releases)** section and install it on your device using **Feather**, **Ksing**, **AltStore**, **TrollStore**, or any other sideloading tool of your choice.
 
-- **Jailbroken devices:** Download [v1.0.3-1 DEBs](https://github.com/ttlongdl/Facebook-Plus/releases/tag/v1.0.3-1) for Rootless, Rootfull, or RootHide. Rootless (`iphoneos-arm64`) and RootHide (`iphoneos-arm64e`) are also published to the [ttlongdl APT repository](https://github.com/ttlongdl/repo).
-- **Sideloaded Facebook:** Use the [Facebook IPA Patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher), which injects Facebook Plus, **standalone** FBAudioFix 0.3.20, standalone ShopeeBlocker, and the Safari **Open in Facebook** extension into a decrypted Facebook IPA supplied by the user. The output uses `FB <Facebook-version> Plus v<FBPlus-version>.ipa`; for example, `FB 585.0.0 Plus v1.0.3-1.ipa`. Sign the IPA and its extension with Feather or another compatible signer.
-- **Feather personal source:** The [Sync Feather Source workflow](https://github.com/ttlongdl/Facebook-IPA-Patcher/actions/workflows/sync-feather-source.yml) updates [personal-source.json](https://github.com/ttlongdl/feather/blob/main/personal-source.json) separately after the IPA is published.
+## ⚡ Build your own IPA with GitHub Actions
 
-**Compatibility and test status:** Rootless, Rootfull, and RootHide packages passed GitHub Actions builds. A signed Facebook 585.0.0 triple-tweak test IPA passed on-device checks for Safari deep links, FBAudioFix background playback, Story/Reels downloads, and Files app visibility. DEB runtime behavior and other Facebook/iOS versions may differ. The standalone audio and Shopee tweaks are **not included** in Facebook Plus DEBs.
+No Mac required. The **Build Facebook Plus (.ipa)** workflow builds the tweak from
+source and injects it into a decrypted Facebook IPA that **you** provide, then
+publishes the result as a draft release on your fork.
 
-**Files sharing:** The triple-tweak IPA Patcher enables `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace` in the Facebook app's `Info.plist`. This exposes the app's Documents folder in Files, not its entire sandbox.
+> [!IMPORTANT]
+> You must supply your own **decrypted** Facebook `.ipa`. We cannot distribute one
+> for legal reasons.
 
-## ⚡ GitHub Actions workflows
+**First time only:**
 
-| Workflow | Purpose |
-|---|---|
-| [Build Tweak (.deb)](.github/workflows/build.yml) | CI compile checks for Rootless / Rootfull |
-| [Build Facebook Plus RootHide DEB](.github/workflows/build-roothide.yml) | RootHide compile checks |
-| [Publish Facebook Plus fork DEBs](.github/workflows/release-fork.yml) | Manual versioned GitHub release of three DEBs |
-| [Test Triple-Tweak Facebook IPA](.github/workflows/test-triple-ipa.yml) | Manual unsigned IPA integration test; does **not** publish a release |
-| [Facebook IPA Patcher](https://github.com/ttlongdl/Facebook-IPA-Patcher/actions/workflows/patch-facebook.yml) | Release-driven IPA creation from a user-provided decrypted Facebook IPA |
+1. **Fork** this repository (top-right **Fork** button).
+2. On your fork, open the **Actions** tab and click **I understand my workflows, go ahead and enable them**.
 
-The `release-fork.yml` workflow requires a `control` version in `major.minor.patch-build` format and publishes a tag `v<version>`. To update the APT source, run the separate [APT publishing workflow](https://github.com/ttlongdl/repo/actions/workflows/publish-fbplus-roothide.yml) **after** the DEB release succeeds.
+**To build:**
+
+1. If your fork is behind, click **Sync fork → Update branch**.
+2. Go to **Actions → Build Facebook Plus (.ipa)**.
+3. Click **Run workflow** on the right.
+4. Fill in the inputs:
+   - **Direct download URL to the decrypted Facebook IPA** — upload your decrypted
+     `.ipa` to [**filebin.net**](https://filebin.net) and paste the **direct
+     download link** to the file. filebin is the recommended host and the one this
+     workflow has been tested with. A link to a *web page* instead of the file
+     itself will fail validation.
+   - **Bundle identifier** *(optional)* — leave blank to keep `com.facebook.Facebook`.
+     Set a custom id to install alongside the stock app. The tweak is
+     bundle-id-agnostic, so it activates under whatever id you choose — no other
+     change needed.
+5. Click **Run workflow** and wait for it to finish (≈10–15 min).
+6. Download the IPA from your fork's **Releases** section. The release is created as
+   a **draft** — open it, review, and publish. (If you don't see Releases, append
+   `/releases` to your fork's URL, e.g. `github.com/<you>/Facebook-Plus/releases`.)
+
+The workflow reuses [`build.sh`](build.sh), so your IPA gets the exact same
+injection as a local build — the tweak, the custom app-icons, and the bundled
+**Open in Facebook** Safari extension, all fakesigned for sideloading.
 
 ## 🛠️ Building from Source & Automated Injection
 
@@ -109,7 +128,7 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
 
 1. **Clone the repository** (including submodules):
    ```bash
-   git clone --recursive https://github.com/ttlongdl/Facebook-Plus.git
+   git clone --recursive https://github.com/SHAJON-404/Facebook-Plus.git
    cd Facebook-Plus
    ```
 
@@ -120,7 +139,7 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
    ```
 
 3. **Automated Pipeline (`build.sh`)**:
-   - Run `./build.sh` to build the default schemes, or narrow it with the
+   - Run `./build.sh` to build **every packaging scheme**, or narrow it with the
      `SCHEMES` variable (e.g. `SCHEMES="rootless rootfull" ./build.sh`).
    - To also produce an injected `.ipa`, place a decrypted Facebook `.ipa` at
      `test/com.facebook.Facebook.ipa` before running.
@@ -132,7 +151,6 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
      |---|---|
      | `rootless` | `Facebook-Plus-v<version>-rootless.deb` |
      | `rootfull` | `Facebook-Plus-v<version>-rootfull.deb` |
-     | `roothide` | `Facebook-Plus-v<version>-roothide.deb` (RootHide Theos required) |
 
    - If a decrypted `.ipa` is present, injects the **rootless** build into it with
      `cyan` and writes `packages/Facebook-Plus-v<facebook-version>-rootless.ipa`.
@@ -163,23 +181,27 @@ This writes a per-machine `.clangd` (with your theos path and SDK baked in) and 
 ## 🏗️ Project Architecture
 
 ```text
-├── Localizations       # Translations (ar, bn, de, es, fr, hi, id, it, ja, ko, zh-Hant, etc.)
+├── Localizations       # Translations (ar, bn, de, es, fr, hi, id, it, ja, ko, pl, pt-BR, ru, tr, vi, zh-Hans, zh-Hant)
 ├── OpenInFacebookSafariExtension  # Safari web extension built into PlugIns ("Open in Facebook")
 ├── resources           # Assets (App icons, SVGs, and asset bundles)
 │   ├── bundle          # Compiled UI images and tweak resources
+│   ├── fonts           # Bundled custom fonts offered by the Fonts picker
 │   ├── logo            # Custom app-icons drop folder for build.sh injection
 │   └── svg             # Source vector graphics
 ├── scripts             # Python utility scripts (e.g., icon merging, svg rendering)
 ├── src                 # Tweak source code
 │   ├── Core            # Constructor, preferences, and resources
 │   ├── Features        # All hooks & feature implementations:
+│   │   ├── Ads         # Feed, video, story & Marketplace ad removal (feed chokepoint + RN/GraphQL)
 │   │   ├── AppChrome   # UI settings gesture (TabBar, Wordmark long-press & Settings Button)
 │   │   ├── AppIcons    # Custom app-icon picker logic
 │   │   ├── Calls       # Incoming Call Blocker (PushKit & CallKit interceptors)
+│   │   ├── Confirmations # Opt-in commit-level confirmations (comment, share, post, friend, follow)
 │   │   ├── Downloads   # Reel & Story media downloaders (save to Photos)
-│   │   ├── Feed        # Feed-related hooks (ads, suggestions, Reels, Stories removal)
+│   │   ├── Feed        # Feed-related hooks (suggestions, Reels, Stories removal)
+│   │   ├── Fonts       # Custom UI font replacement (Core Text registration + picker)
 │   │   ├── Language    # UI language override hooks
-│   │   ├── LikeConfirmation # Confirm before liking logic
+│   │   ├── LikeConfirmation # Confirm likes via the ComponentKit forwarder (feed & Reels)
 │   │   ├── Links       # Open external links in default browser & inbound link bridge
 │   │   ├── OLED        # True black dark mode implementation
 │   │   ├── Onboarding  # Welcome screen controller

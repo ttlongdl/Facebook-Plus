@@ -25,6 +25,44 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable NSString *)storyBucketType;
 @end
 
+#pragma mark - Ads (specialised ad sources, outside the feed-model path)
+
+/// FBSharedFramework. Builds the array of ad items inserted into the Watch /
+/// video feed; returning an empty -insertedItems suppresses them.
+@interface FBVideoFeedAdsPool : NSObject
+- (NSArray *)insertedItems;
+@end
+
+/// FBSharedFramework. Fetches the ads interleaved between stories; the fetch
+/// entry points are no-oped to keep story ads from ever loading.
+@interface FBSnacksAdsPaginatingFetcher : NSObject
+@end
+
+#pragma mark - Action-confirmation targets
+//
+// Each exposes the single method that commits the action, verified present in
+// FBSharedFramework. The hooks guard that method behind an opt-in prompt.
+
+@interface FBCommentCreateMutator : NSObject
+- (void)publishWithSession:(id)session;
+@end
+
+@interface FBPersonFriendableTableViewCell : UITableViewCell
+- (void)handleFriendButtonTapped:(id)sender;
+@end
+
+@interface FBPersonFriendable2TableViewCell : UITableViewCell
+- (void)handleFriendButtonTapped:(id)sender;
+@end
+
+@interface FBSnacksFeedbackComposerShareButtonComponentController : NSObject
+- (void)didTapShareButton;
+@end
+
+@interface FBSnacksFollowButtonComponentController : NSObject
+- (void)didTapFollowButton;
+@end
+
 #pragma mark - Stories ("Snacks")
 
 @interface FBSnacksBucketsSeenStateManager : NSObject

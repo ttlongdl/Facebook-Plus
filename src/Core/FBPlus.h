@@ -58,23 +58,31 @@ extern NSString *const FBPKeyNoThreads;         // Remove the Threads promo unit
 extern NSString *const FBPKeyNoGroupSuggestions;// Remove "groups you should join"
 extern NSString *const FBPKeyNoSuggestedPages;  // Remove "suggested pages for you"
 
+// Confirmations (opt-in: guard an action behind a prompt)
+extern NSString *const FBPKeyConfirmComment;    // Confirm before posting a comment
+extern NSString *const FBPKeyConfirmFriend;     // Confirm before a friend-request action
+extern NSString *const FBPKeyConfirmShare;      // Confirm before sharing
+extern NSString *const FBPKeyConfirmFollow;     // Confirm before following / joining
+extern NSString *const FBPKeyConfirmPost;       // Confirm before publishing a post
+
 // Downloads
 extern NSString *const FBPKeyReelsDownloaderEnabled;
 extern NSString *const FBPKeyStoryDownloaderEnabled;
 
 // Reels
-extern NSString *const FBPKeyReelsLike;         // Confirm reels like
-extern NSString *const FBPKeyReelsHideOverlay;  // Show the "hide overlay" toggle on Reels
+extern NSString *const FBPKeyReelsHideOverlay;  // Strip the Reels overlay (always on; no toggle)
 
 // Stories
 extern NSString *const FBPKeyAnonymousStories;
 extern NSString *const FBPKeyNoAutoNext;
 
 // Feed interaction
-extern NSString *const FBPKeyFeedLike;          // Confirm post like
+extern NSString *const FBPKeyFeedLike;          // Confirm every like (feed + Reels)
 
 // Appearance
 extern NSString *const FBPKeyOLED;              // True-black background in dark mode
+extern NSString *const FBPKeyFont;              // Chosen UI font family ("" / unset = original)
+extern NSString *const FBPKeyFontScale;         // Custom-font size multiplier ("" / unset = 1.0)
 
 // Links
 extern NSString *const FBPKeyLinksInSafari;     // Open external links in the default browser
@@ -87,6 +95,47 @@ extern NSString *const FBPKeyLanguage;          // In-tweak UI language ("" = En
 // Internal
 extern NSString *const FBPKeyIntroduced;        // Onboarding has been shown
 extern NSString *const FBPKeyLastNotifiedVersion; // Latest release the user was told about
+
+#pragma mark - Confirmations
+
+/// One shared "a confirmation is on screen" latch, so the two confirmation
+/// paths (the ComponentKit forwarder and the method-swizzle commit hooks) never
+/// stack a second prompt on top of the first — which is what made tapping a post
+/// raise the prompt over and over.
+#ifdef __cplusplus
+extern "C" {
+#endif
+BOOL FBPConfirmPromptVisible(void);
+void FBPSetConfirmPromptVisible(BOOL visible);
+#ifdef __cplusplus
+}
+#endif
+
+#pragma mark - Fonts
+
+/// Reentrancy / self-exclusion guard for the font-replacement hooks. The tweak's
+/// own UI (FBPFont) and the font hooks themselves build UIFont objects; this latch
+/// is raised around that work so those requests fall through to the original font
+/// instead of being recursively replaced. Only Facebook's own text is swapped.
+#ifdef __cplusplus
+extern "C" {
+#endif
+BOOL FBPFontScopeActive(void);
+void FBPSetFontScopeActive(BOOL active);
+#ifdef __cplusplus
+}
+#endif
+
+#pragma mark - Ads
+
+/// Ad detection for News Feed unit models. Defined in FBPAdsHooks.xm (so every
+/// ad rule lives in one place) and called by the single FBMemModelObject filter
+/// in FBPFeedHooks, which keeps that model hooked exactly once.
+#ifdef __cplusplus
+extern "C" BOOL FBPModelIsBlockedAd(id model);
+#else
+extern BOOL FBPModelIsBlockedAd(id model);
+#endif
 
 #pragma mark - Accessibility identifiers used to locate Facebook views
 //
