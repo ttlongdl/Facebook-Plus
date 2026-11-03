@@ -1,0 +1,83 @@
+name: Publish Facebook Plus fork DEBs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      THEOS: ${{ github.workspace }}/theos
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Check package version and release tag
+        run: |
+          set -euo pipefail
+          VERSION="$(awk -F': ' '/^Version:/{print $2; exit}' control)"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] || { echo "::error::Invalid control Version: $VERSION"; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Install Theos
+        run: |
+          brew install ldid dpkg xz
+          git clone --quiet --recursive https://github.com/theos/theos.git "$THEOS"
+      - name: Build Rootless and Rootfull with upstream Theos
+        run: |
+          set -euo pipefail
+          SCHEMES="rootless rootfull" ./build.sh
+          for scheme in rootless rootfull; do
+            pkg="packages/Facebook-Plus-v${VERSION}-${scheme}.deb"
+            test -s "$pkg"
+            test "$(dpkg-deb -f "$pkg" Version)" = "$VERSION"
+          done
+      - name: Switch to RootHide Theos
+        run: |
+          set -euo pipefail
+          mv "$THEOS" "$RUNNER_TEMP/theos-upstream"
+          git clone --depth 1 --recurse-submodules https://github.com/roothide/theos.git "$THEOS"
+          test -f "$THEOS/makefiles/common.mk"
+      - name: Build and validate RootHide DEB
+        run: |
+          set -euo pipefail
+          SCHEMES="roothide" ./build.sh
+          pkg="packages/Facebook-Plus-v${VERSION}-roothide.deb"
+          test -s "$pkg"
+          test "$(dpkg-deb -f "$pkg" Version)" = "$VERSION"
+          test "$(dpkg-deb -f "$pkg" Architecture)" = "iphoneos-arm64e"
+          dpkg-deb --contents "$pkg" | grep -F 'FacebookPlus.dylib'
+          dpkg-deb --contents "$pkg" | grep -F 'FacebookPlus.bundle'
+      - name: Stage dynamically versioned release assets
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          for scheme in rootless rootfull roothide; do
+            cp "packages/Facebook-Plus-v${VERSION}-${scheme}.deb" release-assets/
+          done
+      - name: Upload DEBs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Facebook-Plus-DEBs
+          path: release-assets/*.deb
+          if-no-files-found: error
+      - name: Create release tag and publish assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists; refusing to overwrite."
+            exit 1
+          fi
+          gh release create "$TAG" \
+            "packages/Facebook-Plus-v${VERSION}-rootless.deb" \
+            "packages/Facebook-Plus-v${VERSION}-rootfull.deb" \
+            "packages/Facebook-Plus-v${VERSION}-roothide.deb" \
+            --target "$GITHUB_SHA" \
+            --title "Facebook Plus v${VERSION}" \
+            --notes "Facebook Plus fork release. Verify runtime and compatibility before publishing."
