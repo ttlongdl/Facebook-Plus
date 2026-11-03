@@ -2,18 +2,12 @@ name: Publish Facebook Plus fork DEBs
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/release-fork.yml'
 
 permissions:
   contents: write
 
 jobs:
   release:
-    # One-time guarded push activation; future ordinary pushes do not publish.
-    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'Trigger FBPlus v1.0.4-1 release'
     runs-on: macos-15
     env:
       THEOS: ${{ github.workspace }}/theos
