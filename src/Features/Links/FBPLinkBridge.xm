@@ -38,6 +38,7 @@
 /// only own the "fbplusbridge" host.
 static NSString *const kFBPBridgeScheme = @"fb";
 static NSString *const kFBPBridgeHost   = @"fbplusbridge";
+static NSString *const kFBPExternalDeepLinkNotification = @"FBPExternalDeepLinkDidOpenNotification";
 
 static BOOL FBPIsFacebookHost(NSString *host) {
     if (!host.length) return NO;
@@ -168,6 +169,12 @@ static BOOL FBPRouteThroughUniversalLink(id delegate, UIApplication *application
     // `self` is typed as the forward-declared FBBaseAppDelegate here, so route
     // the dynamic call through an untyped id.
     id delegate = self;
+    if ([delegate respondsToSelector:NSSelectorFromString(@"application:continueUserActivity:restorationHandler:")]) {
+        [[NSNotificationCenter defaultCenter]
+            postNotificationName:kFBPExternalDeepLinkNotification
+                          object:nil
+                        userInfo:@{@"url": targetURL.absoluteString ?: @""}];
+    }
     if (FBPRouteThroughUniversalLink(delegate, application, targetURL)) return YES;
     return %orig;
 }
