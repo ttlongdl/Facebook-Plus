@@ -135,3 +135,6 @@
 "fonts.delete.message" = "“%@” will be removed.";
 "fonts.delete.confirm" = "Delete";
 "fonts.deleted" = "Font removed";
+
+// Fork: independent Reels Like confirmation
+"row.reelslike.title" = "Confirm Reels Likes";

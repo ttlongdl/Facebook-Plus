@@ -135,3 +135,6 @@
 "fonts.delete.message" = "«%@» sẽ bị xóa.";
 "fonts.delete.confirm" = "Xóa";
 "fonts.deleted" = "Đã xóa phông chữ";
+
+// Fork: independent Reels Like confirmation
+"row.reelslike.title" = "Xác nhận lượt thích Reels";
